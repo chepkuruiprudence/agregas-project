@@ -1,4 +1,3 @@
-cat > tailwind.config.js << 'EOF'
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -8,23 +7,22 @@ export default {
   theme: {
     extend: {
       colors: {
-        // AGREGAS Brand Colors
         primary: {
           50: '#f0f7ff',
           100: '#e0effe',
           200: '#c7dffd',
           300: '#a3cbfc',
           400: '#7eb3f9',
-          500: '#0066ff',  // Bright Blue (main)
+          500: '#0066ff',
           600: '#0052cc',
           700: '#003d99',
           800: '#002966',
-          900: '#001f3f',  // Dark Navy
+          900: '#001f3f',
         },
         accent: {
-          light: '#00ccff',   // Light Cyan
-          bright: '#0066ff',  // Bright Blue
-          dark: '#001f3f',    // Dark Navy
+          light: '#00ccff',
+          bright: '#0066ff',
+          dark: '#001f3f',
         },
         teal: {
           50: '#f0fffe',
@@ -50,4 +48,3 @@ export default {
   },
   plugins: [],
 }
-EOF
