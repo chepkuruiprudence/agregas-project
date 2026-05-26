@@ -4,6 +4,8 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { RegisterType } from './pages/RegisterType';
+import { Orders } from './pages/Orders';
 import { CustomerDashboard } from './pages/CustomerDashboard';
 import { RetailerDashboard } from './pages/RetailerDashboard';
 import { BrandDashboard } from './pages/BrandDashboard';
@@ -19,6 +21,7 @@ function App() {
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register-type" element={<RegisterType />} />
           <Route path="/register" element={<Register />} />
 
           {/* Protected Routes */}
@@ -27,6 +30,14 @@ function App() {
             element={
               <ProtectedRoute requiredRoles={['customer']}>
                 <CustomerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute requiredRoles={['customer']}>
+                <Orders />
               </ProtectedRoute>
             }
           />

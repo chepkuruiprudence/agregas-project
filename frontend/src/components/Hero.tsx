@@ -22,7 +22,7 @@ export const Hero = () => {
 
           <div className="flex gap-4">
             <Link
-              to={isAuthenticated ? '/orders' : '/register'}
+              to={isAuthenticated ? '/orders' : '/register-type'}
               className="bg-white text-primary-900 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition flex items-center gap-2 group"
             >
               {isAuthenticated ? 'Place Order' : 'Get Started'}

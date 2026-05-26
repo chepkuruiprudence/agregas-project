@@ -1,5 +1,6 @@
 import React, { createContext, useState, useCallback, useEffect } from 'react';
-import { User, LoginRequest, RegisterRequest, AuthResponse } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { User, LoginRequest, RegisterRequest } from '../types';
 import { authService } from '../services/auth';
 
 interface AuthContextType {
@@ -8,7 +9,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
-  register: (data: RegisterRequest) => Promise<void>;
+  register: (data: any) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -18,6 +19,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   // Initialize from localStorage
   useEffect(() => {
@@ -39,12 +41,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(response.user);
       localStorage.setItem('agregas_token', response.token);
       localStorage.setItem('agregas_user', JSON.stringify(response.user));
+
+      // Auto-redirect based on role
+      if (response.user.role === 'customer') {
+        navigate('/dashboard/customer');
+      } else if (response.user.role === 'retailer') {
+        navigate('/dashboard/retailer');
+      } else if (response.user.role === 'brand_marketer') {
+        navigate('/dashboard/brand');
+      } else if (response.user.role === 'admin') {
+        navigate('/dashboard/admin');
+      }
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
-  const register = useCallback(async (data: RegisterRequest) => {
+  const register = useCallback(async (data: any) => {
     setIsLoading(true);
     try {
       const response = await authService.register(data);
@@ -52,10 +65,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(response.user);
       localStorage.setItem('agregas_token', response.token);
       localStorage.setItem('agregas_user', JSON.stringify(response.user));
+
+      // Auto-redirect based on role
+      if (response.user.role === 'customer') {
+        navigate('/dashboard/customer');
+      } else if (response.user.role === 'retailer') {
+        navigate('/dashboard/retailer');
+      } else if (response.user.role === 'brand_marketer') {
+        navigate('/dashboard/brand');
+      } else if (response.user.role === 'admin') {
+        navigate('/dashboard/admin');
+      }
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
   const logout = useCallback(async () => {
     setIsLoading(true);
@@ -65,10 +89,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       localStorage.removeItem('agregas_token');
       localStorage.removeItem('agregas_user');
+      navigate('/login');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
   return (
     <AuthContext.Provider
