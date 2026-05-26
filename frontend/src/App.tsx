@@ -1,14 +1,66 @@
-import './index.css'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { Home } from './pages/Home';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';
+import { CustomerDashboard } from './pages/CustomerDashboard';
+import { RetailerDashboard } from './pages/RetailerDashboard';
+import { BrandDashboard } from './pages/BrandDashboard';
+import { AdminDashboard } from './pages/AdminDashboard';
+// @ts-ignore: side-effect import for CSS file without type declarations
+import './index.css';
 
 function App() {
   return (
-    <div className="flex items-center justify-center h-screen bg-gradient-blue-navy">
-      <div className="text-center">
-        <h1 className="text-white text-5xl font-bold mb-4">Welcome to AGREGAS</h1>
-        <p className="text-white text-xl">Cooking Gas. Delivered to You.</p>
-      </div>
-    </div>
-  )
+    <Router>
+      <AuthProvider>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* Protected Routes */}
+          <Route
+            path="/dashboard/customer"
+            element={
+              <ProtectedRoute requiredRoles={['customer']}>
+                <CustomerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/retailer"
+            element={
+              <ProtectedRoute requiredRoles={['retailer']}>
+                <RetailerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/brand"
+            element={
+              <ProtectedRoute requiredRoles={['brand_marketer']}>
+                <BrandDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/admin"
+            element={
+              <ProtectedRoute requiredRoles={['admin']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Catch all */}
+          <Route path="*" element={<Home />} />
+        </Routes>
+      </AuthProvider>
+    </Router>
+  );
 }
 
-export default App
+export default App;

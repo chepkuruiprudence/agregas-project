@@ -1,19 +1,84 @@
+// // {
+// //   // Visit https://aka.ms/tsconfig to read more about this file
+// //   "compilerOptions": {
+// //     // File Layout
+// //     "rootDir": "./",
+// //     "outDir": "./dist",
+
+// //     // Environment Settings
+// //     // See also https://aka.ms/tsconfig/module
+// //     "module": "commonjs",
+// //     "target": "esnext",
+// //     "types": [],
+// //     // For nodejs:
+// //     // "lib": ["esnext"],
+// //     // "types": ["node"],
+// //     // and npm install -D @types/node
+
+// //     // Other Outputs
+// //     "sourceMap": true,
+// //     "declaration": true,
+// //     "declarationMap": true,
+
+// //     // Stricter Typechecking Options
+// //     "noUncheckedIndexedAccess": true,
+// //     "exactOptionalPropertyTypes": false,
+
+// //     // Style Options
+// //     // "noImplicitReturns": true,
+// //     // "noImplicitOverride": true,
+// //     // "noUnusedLocals": true,
+// //     // "noUnusedParameters": true,
+// //     // "noFallthroughCasesInSwitch": true,
+// //     // "noPropertyAccessFromIndexSignature": true,
+
+// //     // Recommended Options
+// //     "strict": true,
+// //     "jsx": "react-jsx",
+// //     "verbatimModuleSyntax": false,
+// //     "isolatedModules": true,
+// //     "noUncheckedSideEffectImports": true,
+// //     "moduleDetection": "force",
+// //     "skipLibCheck": true,
+// //   }
+// // }
+// {
+//   "compilerOptions": {
+//     "rootDir": "./src",
+//     "outDir": "./dist",
+//     "module": "nodenext",
+//     "target": "esnext",
+//     "types": [],
+//     "sourceMap": true,
+//     "esModuleInterop": true,
+//     "declaration": true,
+//     "declarationMap": true,
+//     "noUncheckedIndexedAccess": true,
+//     "exactOptionalPropertyTypes": false,
+//     "emitDeclarationOnly":false,
+//     "allowImportingTsExtensions": false,
+//     "strict": true,
+//     "verbatimModuleSyntax": false,
+//     "isolatedModules": true,
+//     "noUncheckedSideEffectImports": true,
+//     "rewriteRelativeImportExtensions": true,
+//     "moduleDetection": "force",
+//     "skipLibCheck": true
+//   },
+//   "include": ["src/**/*"],
+//   "exclude": ["node_modules", "**/*.spec.ts"]
+// }
+
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "CommonJS",
-    "lib": ["ES2020"],
-    "outDir": "./dist",
+    "target": "es2016",
+    "module": "commonjs",
     "rootDir": "./src",
-    "strict": true,
+    "outDir": "./dist",
     "esModuleInterop": true,
-    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "moduleResolution": "bundler",
-    "types": ["node"],
-    "verbatimModuleSyntax": false
-  },
-  "include": ["src/**/*", "drizzle.config.ts"],
-  "exclude": ["node_modules", "dist"]
+    "strict": true,
+    "jsx": "react-jsx",
+    "skipLibCheck": true
+  }
 }

@@ -1,16 +1,11 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { eq } from "drizzle-orm";
-import * as schema from "../db/schema";
+import * as schema from "../db/schema.js";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
-import { AppError } from "../middleware/errorHandler";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-const db = drizzle(pool, { schema });
+import bcrypt from "bcryptjs";
+import { AppError } from "../middleware/errorHandler.js";
+import { db } from "../db/index.js";
 
 export class AuthService {
   async register(
@@ -61,37 +56,39 @@ export class AuthService {
 
   async login(email: string, password: string) {
     try {
-      const user = await db
+      const users = await db
         .select()
         .from(schema.users)
         .where(eq(schema.users.email, email));
 
-      if (user.length === 0) {
+      const user = users[0];
+
+      if (!user) {
         throw new AppError(401, "Invalid email or password");
       }
 
       const isPasswordValid = await bcrypt.compare(
         password,
-        user[0].password_hash
+        user.password_hash
       );
 
       if (!isPasswordValid) {
         throw new AppError(401, "Invalid email or password");
       }
 
-      if (!user[0].is_active) {
+      if (!user.is_active) {
         throw new AppError(403, "Account is deactivated");
       }
 
-      const token = this.generateJWT(user[0].id, user[0].email, user[0].role);
+      const token = this.generateJWT(user.id, user.email, user.role);
 
       return {
         token,
         user: {
-          id: user[0].id,
-          email: user[0].email,
-          fullName: user[0].full_name,
-          role: user[0].role,
+          id: user.id,
+          email: user.email,
+          fullName: user.full_name,
+          role: user.role,
         },
       };
     } catch (error) {
