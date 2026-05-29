@@ -12,9 +12,19 @@ export class AuthService {
     email: string,
     password: string,
     fullName: string,
-    phone: string
+    phone: string,
+    role: string,
+    extraFields?: Record<string, any>
   ) {
     try {
+      console.log('🔐 Auth service register:', {
+        email,
+        fullName,
+        role,
+        extraFields,
+      });
+
+      // Check if user exists
       const existingUser = await db
         .select()
         .from(schema.users)
@@ -26,6 +36,7 @@ export class AuthService {
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
+      // ✅ CREATE USER WITH ROLE (not hardcoded!)
       const newUser = await db
         .insert(schema.users)
         .values({
@@ -33,12 +44,72 @@ export class AuthService {
           password_hash: hashedPassword,
           full_name: fullName,
           phone,
-          role: "customer",
+          role: role, // ✅ USE THE ROLE PARAMETER
           is_active: true,
         })
         .returning();
 
-      const token = this.generateJWT(newUser[0].id, email, "customer");
+      console.log('✓ User created:', {
+        id: newUser[0].id,
+        role: newUser[0].role,
+      });
+
+      // ✅ HANDLE RETAILER-SPECIFIC DATA
+      if (role === 'retailer' && extraFields) {
+        try {
+          await db
+            .insert(schema.retailers)
+            .values({
+              user_id: newUser[0].id,
+              business_name: extraFields.businessName || '',
+              business_license: extraFields.businessLicense || '',
+              latitude: extraFields.latitude?.toString() || '0',
+              longitude: extraFields.longitude?.toString() || '0',
+              address: extraFields.address || '',
+              phone: phone,
+              brand: '',
+              stock_quantity: 0,
+              cylinder_size: '13kg',
+              tier: 'retail',
+              rating: '0',
+              total_reviews: 0,
+              is_verified: false,
+              is_active: true,
+            })
+            .returning();
+
+          console.log('✓ Retailer profile created');
+        } catch (err) {
+          console.error('Error creating retailer profile:', err);
+          // Don't throw - user was created successfully
+        }
+      }
+
+      // ✅ HANDLE BRAND MARKETER-SPECIFIC DATA
+      if (role === 'brand_marketer' && extraFields) {
+        try {
+          // You'll need to create a brands table in your schema if it doesn't exist
+          // For now, we'll just log it
+          console.log('✓ Brand marketer data:', {
+            companyName: extraFields.companyName,
+            productCategory: extraFields.productCategory,
+            taxId: extraFields.taxId,
+          });
+          // Uncomment when you have a brands table:
+          // await db
+          //   .insert(schema.brands)
+          //   .values({
+          //     user_id: newUser[0].id,
+          //     company_name: extraFields.companyName,
+          //     product_category: extraFields.productCategory,
+          //     tax_id: extraFields.taxId,
+          //   });
+        } catch (err) {
+          console.error('Error creating brand profile:', err);
+        }
+      }
+
+      const token = this.generateJWT(newUser[0].id, email, role);
 
       return {
         token,
@@ -46,10 +117,12 @@ export class AuthService {
           id: newUser[0].id,
           email: newUser[0].email,
           fullName: newUser[0].full_name,
-          role: newUser[0].role,
+          phone: newUser[0].phone,
+          role: newUser[0].role, // ✅ RETURN ROLE
         },
       };
     } catch (error) {
+      console.error('❌ Register error:', error);
       throw error;
     }
   }
@@ -88,10 +161,12 @@ export class AuthService {
           id: user.id,
           email: user.email,
           fullName: user.full_name,
-          role: user.role,
+          phone: user.phone,
+          role: user.role, // ✅ RETURN ROLE
         },
       };
     } catch (error) {
+      console.error('❌ Login error:', error);
       throw error;
     }
   }

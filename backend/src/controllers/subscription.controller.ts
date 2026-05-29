@@ -48,7 +48,7 @@ export async function getSubscription(
       throw new AppError(400, "Subscription ID is required");
     }
 
-    const subscription = await subscriptionService.getSubscription(parseInt(id));
+    const subscription = await subscriptionService.getSubscription(parseInt(id as string));
 
     res.status(200).json({
       success: true,
@@ -74,7 +74,7 @@ export async function renewSubscription(
       throw new AppError(400, "Subscription ID is required");
     }
 
-    const renewed = await subscriptionService.renewSubscription(parseInt(id));
+    const renewed = await subscriptionService.renewSubscription(parseInt(id as string));
 
     res.status(200).json({
       success: true,
@@ -100,7 +100,7 @@ export async function cancelSubscription(
       throw new AppError(400, "Subscription ID is required");
     }
 
-    const cancelled = await subscriptionService.cancelSubscription(parseInt(id));
+    const cancelled = await subscriptionService.cancelSubscription(parseInt(id as string));
 
     res.status(200).json({
       success: true,

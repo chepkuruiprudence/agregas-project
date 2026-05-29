@@ -42,7 +42,7 @@ export async function markAsRead(
       throw new AppError(400, "Notification ID is required");
     }
 
-    const updated = await notificationService.markAsRead(parseInt(id));
+    const updated = await notificationService.markAsRead(parseInt(id as string));
 
     res.status(200).json({
       success: true,
@@ -92,7 +92,7 @@ export async function deleteNotification(
       throw new AppError(400, "Notification ID is required");
     }
 
-    const result = await notificationService.deleteNotification(parseInt(id));
+    const result = await notificationService.deleteNotification(parseInt(id as string));
 
     res.status(200).json({
       success: true,

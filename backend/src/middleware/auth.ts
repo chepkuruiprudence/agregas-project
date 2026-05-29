@@ -28,10 +28,21 @@ export async function authenticateToken(
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "secret") as JwtPayload;
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "secret"
+    ) as JwtPayload;
+
+    console.log('✓ Token verified for user:', {
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role,
+    });
+
     req.user = decoded;
     next();
   } catch (error) {
+    console.error('❌ Token verification failed:', error);
     return res.status(403).json({
       success: false,
       statusCode: 403,

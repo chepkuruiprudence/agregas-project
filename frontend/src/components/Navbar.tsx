@@ -2,6 +2,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Menu, X, LogOut } from 'lucide-react';
 import { useState } from 'react';
+// Ignore missing type declarations for image imports
+// @ts-ignore
+import logoImage from '../assets/Agregas logo.jpeg';
 
 export const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -27,7 +30,7 @@ export const Navbar = () => {
             Login
           </Link>
           <Link
-            to="/register"
+            to="/register-type"
             className="bg-primary-500 text-white px-6 py-2 rounded-lg hover:bg-primary-600 transition"
           >
             Register
@@ -57,7 +60,7 @@ export const Navbar = () => {
           <button className="text-gray-700 hover:text-primary-500 font-medium">
             {user?.fullName}
           </button>
-          <div className="absolute right-0 hidden group-hover:block bg-white shadow-lg rounded-lg py-2 w-40">
+          <div className="absolute right-0 hidden group-hover:block bg-white shadow-lg rounded-lg py-2 w-40 z-50">
             <Link
               to="/profile"
               className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
@@ -80,11 +83,15 @@ export const Navbar = () => {
   return (
     <nav className="bg-white shadow-md sticky top-0 z-50">
       <div className="container-custom flex justify-between items-center py-4">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-gradient-blue-navy rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-xl">A</span>
-          </div>
-          <span className="font-grotesk font-bold text-xl text-primary-900">AGREGAS</span>
+        <Link to="/" className="flex items-center gap-3">
+          <img 
+            src={logoImage} 
+            alt="AGREGAS Logo" 
+            className="h-10 w-auto object-contain"
+          />
+          <span className="font-grotesk font-bold text-xl text-primary-900 hidden sm:inline">
+            AGREGAS
+          </span>
         </Link>
 
         {/* Desktop Menu */}

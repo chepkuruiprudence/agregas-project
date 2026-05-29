@@ -40,7 +40,7 @@ export async function changeUserRole(
       throw new AppError(400, "User ID and new role are required");
     }
 
-    const updated = await userService.changeUserRole(parseInt(userId), newRole);
+    const updated = await userService.changeUserRole(parseInt(userId as string), newRole);
 
     res.status(200).json({
       success: true,
@@ -66,7 +66,7 @@ export async function deactivateUser(
       throw new AppError(400, "User ID is required");
     }
 
-    const updated = await userService.deactivateUser(parseInt(userId));
+    const updated = await userService.deactivateUser(parseInt(userId as string));
 
     res.status(200).json({
       success: true,

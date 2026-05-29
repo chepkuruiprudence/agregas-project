@@ -12,6 +12,7 @@ import { BrandDashboard } from './pages/BrandDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 // @ts-ignore: side-effect import for CSS file without type declarations
 import './index.css';
+import { Profile } from './pages/Profile';
 
 function App() {
   return (
@@ -25,6 +26,15 @@ function App() {
           <Route path="/register" element={<Register />} />
 
           {/* Protected Routes */}
+          <Route
+  path="/profile"
+  element={
+    <ProtectedRoute>
+      <Profile />
+    </ProtectedRoute>
+  }
+/> 
+
           <Route
             path="/dashboard/customer"
             element={

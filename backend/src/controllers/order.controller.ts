@@ -47,11 +47,12 @@ export async function getOrderById(
   try {
     const { id } = req.params;
 
-    if (!id) {
-      throw new AppError(400, "Order ID is required");
+    // Validate ID is a valid number
+    if (!id || isNaN(parseInt(id as string))) {
+      throw new AppError(400, "Invalid Order ID");
     }
 
-    const order = await orderService.getOrderById(parseInt(id));
+    const order = await orderService.getOrderById(parseInt(id as string));
 
     res.status(200).json({
       success: true,
@@ -102,7 +103,7 @@ export async function updateOrderStatus(
       throw new AppError(400, "Order ID and status are required");
     }
 
-    const updated = await orderService.updateOrderStatus(parseInt(id), status);
+    const updated = await orderService.updateOrderStatus(parseInt(id as string), status);
 
     res.status(200).json({
       success: true,
@@ -128,7 +129,7 @@ export async function cancelOrder(
       throw new AppError(400, "Order ID is required");
     }
 
-    const cancelled = await orderService.cancelOrder(parseInt(id));
+    const cancelled = await orderService.cancelOrder(parseInt(id as string));
 
     res.status(200).json({
       success: true,

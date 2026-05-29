@@ -34,52 +34,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = useCallback(async (credentials: LoginRequest) => {
-    setIsLoading(true);
-    try {
-      const response = await authService.login(credentials);
-      setToken(response.token);
-      setUser(response.user);
-      localStorage.setItem('agregas_token', response.token);
-      localStorage.setItem('agregas_user', JSON.stringify(response.user));
+  setIsLoading(true);
+  try {
+    const response = await authService.login(credentials);
+    
+    // 🔴 DEBUG: Log entire response
+    console.log('=== LOGIN RESPONSE ===', response);
+    console.log('Response structure:', {
+      hasToken: !!response.token,
+      hasUser: !!response.user,
+      userRole: response.user?.role,
+      fullResponse: JSON.stringify(response, null, 2)
+    });
 
-      // Auto-redirect based on role
-      if (response.user.role === 'customer') {
-        navigate('/dashboard/customer');
-      } else if (response.user.role === 'retailer') {
-        navigate('/dashboard/retailer');
-      } else if (response.user.role === 'brand_marketer') {
-        navigate('/dashboard/brand');
-      } else if (response.user.role === 'admin') {
-        navigate('/dashboard/admin');
-      }
-    } finally {
-      setIsLoading(false);
+    setToken(response.token);
+    setUser(response.user);
+    localStorage.setItem('agregas_token', response.token);
+    localStorage.setItem('agregas_user', JSON.stringify(response.user));
+
+    // 🔴 DEBUG: Log what's in localStorage
+    const stored = localStorage.getItem('agregas_user');
+    console.log('Stored user:', JSON.parse(stored || '{}'));
+
+    // Auto-redirect based on role
+    const userRole = response.user?.role;
+    console.log('Attempting redirect for role:', userRole);
+    
+    if (userRole === 'customer') {
+      console.log('✓ Redirecting to customer dashboard');
+      navigate('/dashboard/customer');
+    } else if (userRole === 'retailer') {
+      console.log('✓ Redirecting to retailer dashboard');
+      navigate('/dashboard/retailer');
+    } else if (userRole === 'brand_marketer') {
+      console.log('✓ Redirecting to brand dashboard');
+      navigate('/dashboard/brand');
+    } else if (userRole === 'admin') {
+      console.log('✓ Redirecting to admin dashboard');
+      navigate('/dashboard/admin');
+    } else {
+      console.error('❌ Unknown role:', userRole);
+      navigate('/');
     }
-  }, [navigate]);
+  } catch (error) {
+    console.error('Login error:', error);
+  } finally {
+    setIsLoading(false);
+  }
+}, [navigate]);
 
-  const register = useCallback(async (data: any) => {
-    setIsLoading(true);
-    try {
-      const response = await authService.register(data);
-      setToken(response.token);
-      setUser(response.user);
-      localStorage.setItem('agregas_token', response.token);
-      localStorage.setItem('agregas_user', JSON.stringify(response.user));
+// Same for register:
+const register = useCallback(async (data: any) => {
+  setIsLoading(true);
+  try {
+    console.log('=== REGISTER DATA SENT ===', data);
+    const response = await authService.register(data);
+    
+    console.log('=== REGISTER RESPONSE ===', response);
+    console.log('Response user role:', response.user?.role);
 
-      // Auto-redirect based on role
-      if (response.user.role === 'customer') {
-        navigate('/dashboard/customer');
-      } else if (response.user.role === 'retailer') {
-        navigate('/dashboard/retailer');
-      } else if (response.user.role === 'brand_marketer') {
-        navigate('/dashboard/brand');
-      } else if (response.user.role === 'admin') {
-        navigate('/dashboard/admin');
-      }
-    } finally {
-      setIsLoading(false);
+    setToken(response.token);
+    setUser(response.user);
+    localStorage.setItem('agregas_token', response.token);
+    localStorage.setItem('agregas_user', JSON.stringify(response.user));
+
+    const userRole = response.user?.role;
+    console.log('Attempting redirect for role:', userRole);
+    
+    if (userRole === 'customer') {
+      navigate('/dashboard/customer');
+    } else if (userRole === 'retailer') {
+      navigate('/dashboard/retailer');
+    } else if (userRole === 'brand_marketer') {
+      navigate('/dashboard/brand');
+    } else if (userRole === 'admin') {
+      navigate('/dashboard/admin');
     }
-  }, [navigate]);
+  } catch (error) {
+    console.error('Register error:', error);
+    throw error;
+  } finally {
+    setIsLoading(false);
+  }
+}, [navigate]);
 
   const logout = useCallback(async () => {
     setIsLoading(true);

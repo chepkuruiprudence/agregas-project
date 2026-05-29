@@ -38,9 +38,31 @@ export const LoginForm = () => {
     if (!validateForm()) return;
 
     try {
+      // 1. Await the login completion
       await login(formData);
+      
       addNotification('Login successful!', 'success');
-      navigate('/dashboard/customer');
+
+      // 2. Safely grab the freshly logged-in user from your auth state via localStorage
+      // This acts as a robust fallback in case state batching is still resolving
+      const storedUser = localStorage.getItem('agregas_user');
+      const currentUser = storedUser ? JSON.parse(storedUser) : null;
+      const role = currentUser?.role;
+
+      // 3. Handle the explicit redirects based on roles
+      if (role === 'customer') {
+        navigate('/dashboard/customer');
+      } else if (role === 'retailer') {
+        navigate('/dashboard/retailer');
+      } else if (role === 'brand_marketer') {
+        navigate('/dashboard/brand');
+      } else if (role === 'admin') {
+        navigate('/dashboard/admin');
+      } else {
+        // Fallback safety route if role is missing or unrecognized
+        navigate('/');
+      }
+
     } catch (error: any) {
       addNotification(
         error.response?.data?.message || 'Login failed',
@@ -116,7 +138,7 @@ export const LoginForm = () => {
 
           <p className="text-center text-gray-600 mt-6">
             Don't have an account?{' '}
-            <Link to="/register" className="text-primary-500 font-semibold hover:text-primary-600">
+            <Link to="/register-type" className="text-primary-500 font-semibold hover:text-primary-600">
               Register here
             </Link>
           </p>

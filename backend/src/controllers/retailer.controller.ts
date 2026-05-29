@@ -15,7 +15,7 @@ export async function getInventory(
     }
 
     const inventory = await retailerService.getRetailerInventory(
-      parseInt(retailerId)
+      parseInt(retailerId as string)
     );
 
     res.status(200).json({
@@ -44,7 +44,7 @@ export async function updateInventory(
     }
 
     const updated = await retailerService.updateInventory(
-      parseInt(retailerId),
+      parseInt(retailerId as string),
       newQuantity
     );
 
@@ -72,7 +72,7 @@ export async function getPendingOrders(
       throw new AppError(400, "Retailer ID is required");
     }
 
-    const orders = await retailerService.getPendingOrders(parseInt(retailerId));
+    const orders = await retailerService.getPendingOrders(parseInt(retailerId as string));
 
     res.status(200).json({
       success: true,
@@ -99,8 +99,8 @@ export async function acceptOrder(
     }
 
     const result = await retailerService.acceptOrder(
-      parseInt(retailerId),
-      parseInt(orderId)
+      parseInt(retailerId as string),
+      parseInt(orderId as string)
     );
 
     res.status(200).json({
@@ -128,8 +128,8 @@ export async function rejectOrder(
     }
 
     const result = await retailerService.rejectOrder(
-      parseInt(retailerId),
-      parseInt(orderId)
+      parseInt(retailerId as string),
+      parseInt(orderId as string)
     );
 
     res.status(200).json({
@@ -156,7 +156,7 @@ export async function getAnalytics(
       throw new AppError(400, "Retailer ID is required");
     }
 
-    const analytics = await retailerService.getAnalytics(parseInt(retailerId));
+    const analytics = await retailerService.getAnalytics(parseInt(retailerId as string));
 
     res.status(200).json({
       success: true,

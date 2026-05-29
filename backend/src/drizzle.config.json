@@ -3,6 +3,6 @@
   "out": "./src/db/migrations",
   "driver": "pg",
   "dbCredentials": {
-    "connectionString": "postgresql://postgres:YOUR_PASSWORD@localhost:5432/agregas"
+    "connectionString": "postgresql://postgres:pruddygee@localhost:5432/agregas"
   }
 }

@@ -14,7 +14,7 @@ export async function getDeliveryStatus(
       throw new AppError(400, "Order ID is required");
     }
 
-    const status = await deliveryService.getDeliveryStatus(parseInt(orderId));
+    const status = await deliveryService.getDeliveryStatus(parseInt(orderId as string));
 
     res.status(200).json({
       success: true,
@@ -72,7 +72,7 @@ export async function completeDelivery(
     }
 
     // Get tracking record for this order
-    const tracking = await deliveryService.getDeliveryStatus(parseInt(orderId));
+    const tracking = await deliveryService.getDeliveryStatus(parseInt(orderId as string));
 
     // For now, assume trackingId is available (in real app, query properly)
     res.status(200).json({
