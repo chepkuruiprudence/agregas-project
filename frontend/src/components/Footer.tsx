@@ -25,7 +25,7 @@ export const Footer = () => {
             <ul className="space-y-2 text-gray-300">
               <li><Link to="/" className="hover:text-white transition">Home</Link></li>
               <li><Link to="/login" className="hover:text-white transition">Login</Link></li>
-              <li><Link to="/register" className="hover:text-white transition">Register</Link></li>
+              <li><Link to="/register-type" className="hover:text-white transition">Register</Link></li>
             </ul>
           </div>
 
@@ -45,11 +45,11 @@ export const Footer = () => {
             <div className="space-y-3 text-gray-300">
               <div className="flex gap-2 items-center">
                 <Phone size={18} />
-                <a href="tel:+254712345678" className="hover:text-white transition">+254 712 345 678</a>
+                <a href="tel:+254 747 752600" className="hover:text-white transition">+254 747 752600</a>
               </div>
               <div className="flex gap-2 items-center">
                 <Mail size={18} />
-                <a href="mailto:support@agregas.com" className="hover:text-white transition">support@agregas.com</a>
+                <a href="mailto:noreply@agregas.ke" className="hover:text-white transition">noreply@agregas.ke</a>
               </div>
               <div className="flex gap-2 items-center">
                 <MapPin size={18} />

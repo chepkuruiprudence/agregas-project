@@ -4,19 +4,19 @@ import { authenticateToken } from "../middleware/auth";
 
 const router = express.Router();
 
-// POST /api/orders/create
+/**
+ * CRITICAL: Route order matters!
+ * More SPECIFIC routes must come BEFORE generic ones
+ * Otherwise GET /orders/customer gets matched to GET /orders/:id
+ */
+
+// ✅ SPECIFIC routes first
 router.post("/create", authenticateToken, orderController.createOrder);
+router.get("/customer", authenticateToken, orderController.getCustomerOrders); // ✅ NO /list
 
-// GET /api/orders/:id
+// ✅ GENERIC routes last
 router.get("/:id", authenticateToken, orderController.getOrderById);
-
-// GET /api/orders/customer/list
-router.get("/customer/list", authenticateToken, orderController.getCustomerOrders);
-
-// PUT /api/orders/:id/status
 router.put("/:id/status", authenticateToken, orderController.updateOrderStatus);
-
-// DELETE /api/orders/:id
 router.delete("/:id", authenticateToken, orderController.cancelOrder);
 
 export default router;

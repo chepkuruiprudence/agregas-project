@@ -1,7 +1,16 @@
 import React, { createContext, useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, LoginRequest, RegisterRequest } from '../types';
+import { LoginRequest, RegisterRequest } from '../types';
 import { authService } from '../services/auth';
+import { useNotifications } from '../hooks/useNotifications';
+
+interface User {
+  id: number;
+  email: string;
+  fullName: string;
+  phone: string;
+  role: 'customer' | 'retailer' | 'brand_marketer' | 'admin';
+}
 
 interface AuthContextType {
   user: User | null;
@@ -10,7 +19,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
   register: (data: any) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,131 +29,167 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const { addNotification } = useNotifications();
 
-  // Initialize from localStorage
+  /**
+   * Initialize auth from localStorage on mount
+   * This allows users to stay logged in on page refresh
+   */
   useEffect(() => {
-    const storedToken = localStorage.getItem('agregas_token');
-    const storedUser = localStorage.getItem('agregas_user');
+    const initializeAuth = () => {
+      try {
+        const storedToken = localStorage.getItem('agregas_token');
+        const storedUser = localStorage.getItem('agregas_user');
 
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
-  }, []);
+        if (storedToken && storedUser) {
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser));
+          console.log('✓ User already authenticated:', storedUser);
+        } else {
+          console.log('ℹ️ No stored auth, user is logged out');
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        localStorage.removeItem('agregas_token');
+        localStorage.removeItem('agregas_user');
+        addNotification('Session error, please login again', 'error');
+      } finally {
+        // Always set loading to false after check
+        setIsLoading(false);
+      }
+    };
 
-  const login = useCallback(async (credentials: LoginRequest) => {
-  setIsLoading(true);
-  try {
-    const response = await authService.login(credentials);
-    
-    // 🔴 DEBUG: Log entire response
-    console.log('=== LOGIN RESPONSE ===', response);
-    console.log('Response structure:', {
-      hasToken: !!response.token,
-      hasUser: !!response.user,
-      userRole: response.user?.role,
-      fullResponse: JSON.stringify(response, null, 2)
-    });
+    initializeAuth();
+  }, [addNotification]);
 
-    setToken(response.token);
-    setUser(response.user);
-    localStorage.setItem('agregas_token', response.token);
-    localStorage.setItem('agregas_user', JSON.stringify(response.user));
+  /**
+   * Login with email and password
+   * Auto-redirects to dashboard based on user role
+   */
+  const login = useCallback(
+    async (credentials: LoginRequest) => {
+      try {
+        setIsLoading(true);
+        console.log('🔐 Login attempt:', credentials.email);
 
-    // 🔴 DEBUG: Log what's in localStorage
-    const stored = localStorage.getItem('agregas_user');
-    console.log('Stored user:', JSON.parse(stored || '{}'));
+        const response = await authService.login(credentials);
 
-    // Auto-redirect based on role
-    const userRole = response.user?.role;
-    console.log('Attempting redirect for role:', userRole);
-    
-    if (userRole === 'customer') {
-      console.log('✓ Redirecting to customer dashboard');
-      navigate('/dashboard/customer');
-    } else if (userRole === 'retailer') {
-      console.log('✓ Redirecting to retailer dashboard');
-      navigate('/dashboard/retailer');
-    } else if (userRole === 'brand_marketer') {
-      console.log('✓ Redirecting to brand dashboard');
-      navigate('/dashboard/brand');
-    } else if (userRole === 'admin') {
-      console.log('✓ Redirecting to admin dashboard');
-      navigate('/dashboard/admin');
-    } else {
-      console.error('❌ Unknown role:', userRole);
-      navigate('/');
-    }
-  } catch (error) {
-    console.error('Login error:', error);
-  } finally {
-    setIsLoading(false);
-  }
-}, [navigate]);
+        console.log('=== LOGIN RESPONSE ===');
+        console.log('Token:', response.token?.substring(0, 20) + '...');
+        console.log('User:', response.user);
 
-// Same for register:
-const register = useCallback(async (data: any) => {
-  setIsLoading(true);
-  try {
-    console.log('=== REGISTER DATA SENT ===', data);
-    const response = await authService.register(data);
-    
-    console.log('=== REGISTER RESPONSE ===', response);
-    console.log('Response user role:', response.user?.role);
+        // Store token and user in localStorage
+        localStorage.setItem('agregas_token', response.token);
+        localStorage.setItem('agregas_user', JSON.stringify(response.user));
 
-    setToken(response.token);
-    setUser(response.user);
-    localStorage.setItem('agregas_token', response.token);
-    localStorage.setItem('agregas_user', JSON.stringify(response.user));
+        setToken(response.token);
+        setUser(response.user);
 
-    const userRole = response.user?.role;
-    console.log('Attempting redirect for role:', userRole);
-    
-    if (userRole === 'customer') {
-      navigate('/dashboard/customer');
-    } else if (userRole === 'retailer') {
-      navigate('/dashboard/retailer');
-    } else if (userRole === 'brand_marketer') {
-      navigate('/dashboard/brand');
-    } else if (userRole === 'admin') {
-      navigate('/dashboard/admin');
-    }
-  } catch (error) {
-    console.error('Register error:', error);
-    throw error;
-  } finally {
-    setIsLoading(false);
-  }
-}, [navigate]);
+        console.log('✓ Login successful for role:', response.user.role);
+        addNotification('Login successful!', 'success');
 
-  const logout = useCallback(async () => {
-    setIsLoading(true);
+        // Auto-redirect based on role
+        const dashboardRoutes: Record<string, string> = {
+          customer: '/dashboard/customer',
+          retailer: '/dashboard/retailer',
+          brand_marketer: '/dashboard/brand',
+          admin: '/dashboard/admin',
+        };
+
+        const dashboardUrl = dashboardRoutes[response.user.role] || '/dashboard/customer';
+        console.log('✓ Redirecting to', dashboardUrl);
+        navigate(dashboardUrl);
+      } catch (error: any) {
+        console.error('❌ Login error:', error);
+        const errorMessage = error.response?.data?.message || error.message || 'Login failed';
+        addNotification(errorMessage, 'error');
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [navigate, addNotification]
+  );
+
+  /**
+   * Register new user
+   * Auto-redirects to dashboard based on role
+   */
+  const register = useCallback(
+    async (data: any) => {
+      try {
+        setIsLoading(true);
+        console.log('=== REGISTER DATA SENT ===');
+        console.log(data);
+
+        const response = await authService.register(data);
+
+        console.log('=== REGISTER RESPONSE ===');
+        console.log('Token:', response.token?.substring(0, 20) + '...');
+        console.log('User:', response.user);
+
+        // Store token and user in localStorage
+        localStorage.setItem('agregas_token', response.token);
+        localStorage.setItem('agregas_user', JSON.stringify(response.user));
+
+        setToken(response.token);
+        setUser(response.user);
+
+        console.log('✓ Registration successful for role:', response.user.role);
+        addNotification('Welcome to AGREGAS! Registration successful!', 'success');
+
+        // Auto-redirect based on role
+        const dashboardRoutes: Record<string, string> = {
+          customer: '/dashboard/customer',
+          retailer: '/dashboard/retailer',
+          brand_marketer: '/dashboard/brand',
+          admin: '/dashboard/admin',
+        };
+
+        const dashboardUrl = dashboardRoutes[response.user.role] || '/dashboard/customer';
+        console.log('✓ Redirecting to', dashboardUrl);
+        navigate(dashboardUrl);
+      } catch (error: any) {
+        console.error('❌ Register error:', error);
+        const errorMessage = error.response?.data?.message || error.message || 'Registration failed';
+        addNotification(errorMessage, 'error');
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [navigate, addNotification]
+  );
+
+  /**
+   * Logout user
+   * Clears token, user, and redirects to home
+   */
+  const logout = useCallback(() => {
     try {
-      await authService.logout();
+      console.log('🚪 Logging out...');
+      authService.logout();
       setToken(null);
       setUser(null);
       localStorage.removeItem('agregas_token');
       localStorage.removeItem('agregas_user');
-      navigate('/login');
-    } finally {
-      setIsLoading(false);
+      addNotification('Logged out successfully', 'success');
+      navigate('/');
+    } catch (error) {
+      console.error('Error logging out:', error);
+      addNotification('Error logging out', 'error');
     }
-  }, [navigate]);
+  }, [navigate, addNotification]);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        isAuthenticated: !!token,
-        isLoading,
-        login,
-        register,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const value: AuthContextType = {
+    user,
+    token,
+    isAuthenticated: !!token && !!user,
+    isLoading,
+    login,
+    register,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

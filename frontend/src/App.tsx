@@ -10,6 +10,7 @@ import { CustomerDashboard } from './pages/CustomerDashboard';
 import { RetailerDashboard } from './pages/RetailerDashboard';
 import { BrandDashboard } from './pages/BrandDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { PublicRoute } from './components/PublicRoute';
 // @ts-ignore: side-effect import for CSS file without type declarations
 import './index.css';
 import { Profile } from './pages/Profile';
@@ -20,10 +21,9 @@ function App() {
       <AuthProvider>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register-type" element={<RegisterType />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+<Route path="/register-type" element={<PublicRoute><RegisterType /></PublicRoute>} />
+<Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
 
           {/* Protected Routes */}
           <Route

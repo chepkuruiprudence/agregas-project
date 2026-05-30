@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
-import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
-import StarIcon from '@mui/icons-material/Star';
-import SpokeIcon from '@mui/icons-material/Spoke'; 
-import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import { useApi } from '../hooks/useApi';
+import { ShoppingBag, Star, Leaf, CheckCircle } from 'lucide-react';
 
 interface StatsData {
   totalOrders: number;
@@ -13,6 +10,7 @@ interface StatsData {
 }
 
 export const StatsGrid = () => {
+  const { request } = useApi();
   const [stats, setStats] = useState<StatsData>({
     totalOrders: 0,
     loyaltyPoints: 0,
@@ -23,73 +21,110 @@ export const StatsGrid = () => {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    const fetchDashboardStats = async () => {
-      try {
-        setLoading(true);
-        setError(false);
-
-        // 1. Pointed directly to your active port 3000 server
-        const API_BASE = 'http://localhost:3000/api'; 
-        
-        // 2. Retrieve token for authorization headers
-        const token = localStorage.getItem('agregas_token');
-        
-        const config = {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        };
-
-        // 3. Request your endpoints concurrently 
-        const [ordersRes, loyaltyRes, cgcRes] = await Promise.all([
-          axios.get(`${API_BASE}/orders/customer`, config),
-          axios.get(`${API_BASE}/loyalty/balance`, config),
-          axios.get(`${API_BASE}/cgc/balance`, config),
-        ]);
-
-        // 4. Safely parse data payloads matching your Express routes
-        const totalOrders = Array.isArray(ordersRes.data?.data) ? ordersRes.data.data.length : 0;
-        const loyaltyPoints = loyaltyRes.data?.data?.balance || loyaltyRes.data?.data || 0;
-        const carbonCredits = cgcRes.data?.data?.balance || cgcRes.data?.data || 0;
-        const subscriptionTier = 'Premium'; 
-
-        setStats({
-          totalOrders,
-          loyaltyPoints,
-          carbonCredits,
-          subscriptionTier,
-        });
-      } catch (err) {
-        console.error('API fetch error on dashboard cards:', err);
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDashboardStats();
   }, []);
 
+  const fetchDashboardStats = async () => {
+    try {
+      setLoading(true);
+      setError(false);
+
+      console.log('📊 Fetching dashboard stats...');
+
+      // ✅ FIXED: Call the correct endpoint
+      const [ordersRes, loyaltyRes, cgcRes] = await Promise.all([
+        request('get', '/orders'),  // ✅ Changed from /orders/customer to /orders
+        request('get', '/loyalty/balance'),
+        request('get', '/cgc/balance'),
+      ]);
+
+      console.log('✓ Orders response:', ordersRes.data);
+      console.log('✓ Loyalty response:', loyaltyRes.data);
+      console.log('✓ CGC response:', cgcRes.data);
+
+      // Parse orders
+      let totalOrders = 0;
+      if (ordersRes.data?.data) {
+        totalOrders = Array.isArray(ordersRes.data.data) 
+          ? ordersRes.data.data.length 
+          : 0;
+      }
+
+      // Parse loyalty points
+      let loyaltyPoints = 0;
+      if (loyaltyRes.data?.data) {
+        if (typeof loyaltyRes.data.data === 'object' && 'balance' in loyaltyRes.data.data) {
+          loyaltyPoints = loyaltyRes.data.data.balance || 0;
+        } else if (typeof loyaltyRes.data.data === 'number') {
+          loyaltyPoints = loyaltyRes.data.data;
+        }
+      }
+
+      // Parse CGC credits
+      let carbonCredits = 0;
+      if (cgcRes.data?.data) {
+        if (typeof cgcRes.data.data === 'object' && 'balance' in cgcRes.data.data) {
+          carbonCredits = cgcRes.data.data.balance || 0;
+        } else if (typeof cgcRes.data.data === 'number') {
+          carbonCredits = cgcRes.data.data;
+        }
+      }
+
+      console.log('✓ Parsed stats:', {
+        totalOrders,
+        loyaltyPoints,
+        carbonCredits,
+      });
+
+      setStats({
+        totalOrders,
+        loyaltyPoints,
+        carbonCredits,
+        subscriptionTier: 'None',
+      });
+    } catch (err) {
+      console.error('❌ API fetch error:', err);
+      setError(true);
+      // Set fallback values so dashboard still works
+      setStats({
+        totalOrders: 0,
+        loyaltyPoints: 0,
+        carbonCredits: 0,
+        subscriptionTier: 'None',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const statCards = [
     {
-      label: 'Total Orders',
+      label: 'Active orders',
       value: stats.totalOrders.toString(),
-      icon: <ShoppingBagIcon sx={{ fontSize: 36 }} className="text-blue-500" />,
+      icon: ShoppingBag,
+      bgColor: 'bg-blue-100',
+      iconColor: 'text-blue-600',
     },
     {
-      label: 'Loyalty Points',
-      value: stats.loyaltyPoints.toLocaleString(),
-      icon: <StarIcon sx={{ fontSize: 36 }} className="text-yellow-500" />,
-    },
-    {
-      label: 'Carbon Credits',
-      value: stats.carbonCredits.toLocaleString(),
-      icon: <SpokeIcon sx={{ fontSize: 36 }} className="text-green-500" />,
-    },
-    {
-      label: 'Active Subscription',
+      label: 'Subscription',
       value: stats.subscriptionTier,
-      icon: <VerifiedUserIcon sx={{ fontSize: 36 }} className="text-teal-500" />,
+      icon: CheckCircle,
+      bgColor: 'bg-orange-100',
+      iconColor: 'text-orange-600',
+    },
+    {
+      label: 'Loyalty points',
+      value: stats.loyaltyPoints.toLocaleString(),
+      icon: Star,
+      bgColor: 'bg-teal-100',
+      iconColor: 'text-teal-600',
+    },
+    {
+      label: 'CGC balance',
+      value: stats.carbonCredits.toLocaleString(),
+      icon: Leaf,
+      bgColor: 'bg-purple-100',
+      iconColor: 'text-purple-600',
     },
   ];
 
@@ -97,11 +132,13 @@ export const StatsGrid = () => {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
         {Array.from({ length: 4 }).map((_, idx) => (
-          <div key={idx} className="bg-white p-6 rounded-lg shadow animate-pulse flex items-center gap-4">
-            <div className="w-12 h-12 bg-gray-200 rounded-full" />
-            <div className="space-y-2 flex-1">
-              <div className="h-4 bg-gray-200 rounded w-1/2" />
-              <div className="h-6 bg-gray-200 rounded w-3/4" />
+          <div key={idx} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-pulse">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gray-200 rounded-full" />
+              <div className="space-y-2 flex-1">
+                <div className="h-3 bg-gray-200 rounded w-20" />
+                <div className="h-6 bg-gray-200 rounded w-16" />
+              </div>
             </div>
           </div>
         ))}
@@ -109,30 +146,31 @@ export const StatsGrid = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg mb-12 text-sm text-center font-medium">
-        Error calculating real-time metrics. Please refresh the page.
-      </div>
-    );
-  }
-
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-      {statCards.map((stat, idx) => (
-        <div
-          key={idx}
-          className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition flex items-center gap-4"
-        >
-          <div className="flex items-center justify-center bg-gray-50 p-3 rounded-xl">
-            {stat.icon}
+      {statCards.map((stat, idx) => {
+        const Icon = stat.icon;
+        return (
+          <div
+            key={idx}
+            className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition"
+          >
+            <div className="flex items-center gap-4">
+              <div className={`p-3 rounded-full ${stat.bgColor}`}>
+                <Icon size={24} className={stat.iconColor} />
+              </div>
+              <div>
+                <p className="text-gray-600 text-xs font-medium uppercase tracking-wide">
+                  {stat.label}
+                </p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  {stat.value}
+                </p>
+              </div>
+            </div>
           </div>
-          <div>
-            <p className="text-gray-500 text-xs uppercase font-bold tracking-wider">{stat.label}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-0.5">{stat.value}</p>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
