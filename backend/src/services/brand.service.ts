@@ -110,7 +110,7 @@ export class BrandService {
         .from(schema.users)
         .where(eq(schema.users.id, userId));
 
-      if (!brand[0] || brand[0].role !== 'brand_marketer') {
+      if (!brand[0] || brand[0].role !== 'brand') {
         throw new AppError(403, "User is not a brand marketer");
       }
 
@@ -200,8 +200,8 @@ export class BrandService {
         .from(schema.users)
         .where(eq(schema.users.id, userId));
 
-      if (!brand[0] || brand[0].role !== 'brand_marketer') {
-        throw new AppError(403, "User is not a brand marketer");
+      if (!brand[0] || brand[0].role !== 'brand') {
+        throw new AppError(403, "User is not a brand");
       }
 
       const products = await db
@@ -233,8 +233,8 @@ export class BrandService {
         .from(schema.users)
         .where(eq(schema.users.id, userId));
 
-      if (!brand[0] || brand[0].role !== 'brand_marketer') {
-        throw new AppError(403, "User is not a brand marketer");
+      if (!brand[0] || brand[0].role !== 'brand') {
+        throw new AppError(403, "User is not a brand");
       }
 
       const newProduct = await db
@@ -264,8 +264,8 @@ export class BrandService {
         .from(schema.users)
         .where(eq(schema.users.id, userId));
 
-      if (!brand[0] || brand[0].role !== 'brand_marketer') {
-        throw new AppError(403, "User is not a brand marketer");
+      if (!brand[0] || brand[0].role !== 'brand') {
+        throw new AppError(403, "User is not a brand");
       }
 
       const updated = await db
@@ -303,8 +303,8 @@ export class BrandService {
         .from(schema.users)
         .where(eq(schema.users.id, userId));
 
-      if (!brand[0] || brand[0].role !== 'brand_marketer') {
-        throw new AppError(403, "User is not a brand marketer");
+      if (!brand[0] || brand[0].role !== 'brand') {
+        throw new AppError(403, "User is not a brand");
       }
 
       const deleted = await db
@@ -340,7 +340,7 @@ export class BrandService {
         .from(schema.users)
         .where(eq(schema.users.id, userId));
 
-      if (!brand[0] || brand[0].role !== 'brand_marketer') {
+      if (!brand[0] || brand[0].role !== 'brand') {
         throw new AppError(403, "User is not a brand marketer");
       }
 
@@ -403,8 +403,8 @@ export class BrandService {
         .from(schema.users)
         .where(eq(schema.users.id, userId));
 
-      if (!brand[0] || brand[0].role !== 'brand_marketer') {
-        throw new AppError(403, "User is not a brand marketer");
+      if (!brand[0] || brand[0].role !== 'brand') {
+        throw new AppError(403, "User is not a brand");
       }
 
       // Placeholder: Return empty analytics structure
@@ -431,8 +431,8 @@ export class BrandService {
         .from(schema.users)
         .where(eq(schema.users.id, userId));
 
-      if (!brand[0] || brand[0].role !== 'brand_marketer') {
-        throw new AppError(403, "User is not a brand marketer");
+      if (!brand[0] || brand[0].role !== 'brand') {
+        throw new AppError(403, "User is not a brand");
       }
 
       const updated = await db
@@ -467,8 +467,8 @@ export class BrandService {
         .from(schema.users)
         .where(eq(schema.users.id, userId));
 
-      if (!brand[0] || brand[0].role !== 'brand_marketer') {
-        throw new AppError(403, "User is not a brand marketer");
+      if (!brand[0] || brand[0].role !== 'brand') {
+        throw new AppError(403, "User is not a brand");
       }
 
       const retailer = await db
