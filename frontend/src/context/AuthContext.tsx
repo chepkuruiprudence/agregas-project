@@ -41,20 +41,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const storedToken = localStorage.getItem('agregas_token');
         const storedUser = localStorage.getItem('agregas_user');
 
-        if (storedToken && storedUser) {
-          setToken(storedToken);
-          setUser(JSON.parse(storedUser));
-          console.log('✓ User already authenticated:', storedUser);
-        } else {
-          console.log('ℹ️ No stored auth, user is logged out');
+        // Added Guard Clause: Sanitize bad literal string value clean-ups
+        if (
+          !storedToken || 
+          storedToken === 'null' || 
+          storedToken === 'undefined' ||
+          !storedUser ||
+          storedUser === 'null' ||
+          storedUser === 'undefined'
+        ) {
+          console.log('ℹ️ No clean stored auth found, clearing any corrupt placeholder entries');
+          localStorage.removeItem('agregas_token');
+          localStorage.removeItem('agregas_user');
+          setToken(null);
+          setUser(null);
+          return;
         }
+
+        // Complete parsing steps safely since values are validated non-null strings
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+        console.log('✓ User already authenticated:', storedUser);
+
       } catch (error) {
         console.error('Error initializing auth:', error);
         localStorage.removeItem('agregas_token');
         localStorage.removeItem('agregas_user');
+        setToken(null);
+        setUser(null);
         addNotification('Session error, please login again', 'error');
       } finally {
-        // Always set loading to false after check
+        // Always set loading to false after check completes
         setIsLoading(false);
       }
     };

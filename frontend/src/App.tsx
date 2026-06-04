@@ -11,6 +11,7 @@ import { RetailerDashboard } from './pages/RetailerDashboard';
 import { BrandDashboard } from './pages/BrandDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { PublicRoute } from './components/PublicRoute';
+import { PaymentPage } from './components/PaymentPage';
 // @ts-ignore: side-effect import for CSS file without type declarations
 import './index.css';
 import { Profile } from './pages/Profile';
@@ -75,6 +76,15 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+  path="/payment"
+  element={
+    <ProtectedRoute requiredRoles={['customer']}>
+      <PaymentPage />
+    </ProtectedRoute>
+  }
+/>
 
           {/* Catch all */}
           <Route path="*" element={<Home />} />

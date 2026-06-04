@@ -14,6 +14,7 @@ export const useApi = () => {
     setError(null);
     try {
       const response = await apiClient[method](url, data);
+      // Returns the response body directly ({ success, statusCode, data, message })
       return response.data;
     } catch (err: any) {
       const message = err.response?.data?.message || err.message;

@@ -19,11 +19,12 @@ export async function authenticateToken(
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
 
-    if (!token) {
+    // Added Guard Check: Catches missing, literal "null", or literal "undefined" tokens cleanly
+    if (!token || token === "null" || token === "undefined") {
       return res.status(401).json({
         success: false,
         statusCode: 401,
-        message: "No token provided",
+        message: "No valid authorization token provided",
         timestamp: new Date().toISOString(),
       });
     }
@@ -41,12 +42,14 @@ export async function authenticateToken(
 
     req.user = decoded;
     next();
-  } catch (error) {
-    console.error('❌ Token verification failed:', error);
+  } catch (error: any) {
+    // Cleaner error reporting in terminal instead of dumping complete trace arrays for standard failures
+    console.error('❌ Token verification failed:', error.message || error);
+    
     return res.status(403).json({
       success: false,
       statusCode: 403,
-      message: "Invalid or expired token",
+      message: error.name === "JsonWebTokenError" ? "Malformed token signature" : "Invalid or expired token",
       timestamp: new Date().toISOString(),
     });
   }
