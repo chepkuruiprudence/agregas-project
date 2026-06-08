@@ -44,7 +44,7 @@ export const Navbar = () => {
         ? '/dashboard/customer'
         : user?.role === 'retailer'
         ? '/dashboard/retailer'
-        : user?.role === 'brand_marketer'
+        : user?.role === 'brand'
         ? '/dashboard/brand'
         : '/dashboard/admin';
 

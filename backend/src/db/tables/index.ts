@@ -10,3 +10,4 @@ export * from "./notifications.table.js";
 export * from "./pricing-snapshots.table.js";
 export * from "./delivery-tracking.table.js";
 export * from "./analytics-events.table.js";
+export * from "./finance.tables.js";

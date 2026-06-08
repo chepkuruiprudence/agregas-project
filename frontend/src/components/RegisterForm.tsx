@@ -36,7 +36,7 @@ export const RegisterForm = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!['customer', 'retailer', 'brand_marketer'].includes(role)) {
+    if (!['customer', 'retailer', 'brand'].includes(role)) {
       navigate('/register-type');
     }
   }, [role, navigate]);
@@ -73,7 +73,7 @@ export const RegisterForm = () => {
       }
     }
 
-    if (role === 'brand_marketer') {
+    if (role === 'brand') {
       if (!formData.companyName.trim()) {
         newErrors.companyName = 'Company name is required';
       }
@@ -110,7 +110,7 @@ export const RegisterForm = () => {
         registerData.longitude = parseFloat(formData.longitude);
       }
 
-      if (role === 'brand_marketer') {
+      if (role === 'brand') {
         registerData.companyName = formData.companyName;
         registerData.productCategory = formData.productCategory;
         registerData.taxId = formData.taxId;
@@ -128,7 +128,7 @@ export const RegisterForm = () => {
 
   const getRoleTitle = () => {
     if (role === 'retailer') return 'Retailer Registration';
-    if (role === 'brand_marketer') return 'Brand Partner Registration';
+    if (role === 'brand') return 'Brand Partner Registration';
     return 'Customer Registration';
   };
 
@@ -303,7 +303,7 @@ export const RegisterForm = () => {
             )}
 
             {/* BRAND FIELDS */}
-            {role === 'brand_marketer' && (
+            {role === 'brand' && (
               <>
                 <div className="border-t pt-6 mt-6">
                   <h3 className="font-semibold text-gray-700 mb-4">Company Information</h3>

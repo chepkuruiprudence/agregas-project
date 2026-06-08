@@ -87,7 +87,7 @@ export const ProfileForm = () => {
         updateData.longitude = formData.longitude;
       }
 
-      if (user?.role === 'brand_marketer') {
+      if (user?.role === 'brand') {
         updateData.companyName = formData.companyName;
         updateData.productCategory = formData.productCategory;
         updateData.taxId = formData.taxId;
@@ -120,7 +120,7 @@ export const ProfileForm = () => {
         <h2 className="text-2xl font-bold text-primary-900">
           {user?.role === 'customer' && 'My Profile'}
           {user?.role === 'retailer' && 'Business Profile'}
-          {user?.role === 'brand_marketer' && 'Company Profile'}
+          {user?.role === 'brand' && 'Company Profile'}
           {user?.role === 'admin' && 'Admin Profile'}
         </h2>
         <button
@@ -262,7 +262,7 @@ export const ProfileForm = () => {
         )}
 
         {/* BRAND FIELDS */}
-        {user?.role === 'brand_marketer' && editing && (
+        {user?.role === 'brand' && editing && (
           <div className="border-t pt-6">
             <h3 className="text-lg font-semibold text-gray-700 mb-4">Company Information</h3>
             <div className="grid md:grid-cols-2 gap-4">

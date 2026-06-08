@@ -30,7 +30,7 @@ export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps)
 
     // Fallback path calculation with safe optional chaining
     const currentRole = user?.role || 'customer';
-    const targetDashboard = currentRole === 'brand_marketer' ? 'brand' : currentRole;
+    const targetDashboard = currentRole === 'brand' ? 'brand' : currentRole;
     
     return <Navigate to={`/dashboard/${targetDashboard}`} replace />;
   }

@@ -4,7 +4,7 @@ export interface User {
   email: string;
   fullName: string;
   phone: string;
-  role: 'customer' | 'retailer' | 'brand_marketer' | 'admin';
+  role: 'customer' | 'retailer' | 'brand' | 'admin';
   isActive: boolean;
   createdAt: string;
 }

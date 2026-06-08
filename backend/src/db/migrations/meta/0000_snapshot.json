@@ -1413,7 +1413,7 @@
       "values": {
         "customer": "customer",
         "retailer": "retailer",
-        "brand_marketer": "brand_marketer",
+        "brand": "brand",
         "admin": "admin"
       }
     }

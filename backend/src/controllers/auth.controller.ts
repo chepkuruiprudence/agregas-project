@@ -27,7 +27,7 @@ export async function register(
     }
 
     // Validate role is one of allowed values
-    const validRoles = ['customer', 'retailer', 'brand_marketer'];
+    const validRoles = ['customer', 'retailer', 'brand', 'admin'];
     if (!validRoles.includes(role)) {
       throw new AppError(
         400,

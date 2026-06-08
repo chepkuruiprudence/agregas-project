@@ -9,7 +9,7 @@ interface User {
   email: string;
   fullName: string;
   phone: string;
-  role: 'customer' | 'retailer' | 'brand_marketer' | 'admin';
+  role: 'customer' | 'retailer' | 'brand' | 'admin';
 }
 
 interface AuthContextType {
@@ -109,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const dashboardRoutes: Record<string, string> = {
           customer: '/dashboard/customer',
           retailer: '/dashboard/retailer',
-          brand_marketer: '/dashboard/brand',
+          brand: '/dashboard/brand',
           admin: '/dashboard/admin',
         };
 
@@ -159,7 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const dashboardRoutes: Record<string, string> = {
           customer: '/dashboard/customer',
           retailer: '/dashboard/retailer',
-          brand_marketer: '/dashboard/brand',
+          brand: '/dashboard/brand',
           admin: '/dashboard/admin',
         };
 

@@ -25,7 +25,7 @@ export const RoleBasedNav = () => {
           { label: 'Orders', path: '/retailer/orders' },
           { label: 'Inventory', path: '/retailer/inventory' },
         ];
-      case 'brand_marketer':
+      case 'brand':
         return [
           { label: 'Dashboard', path: '/dashboard/brand' },
           { label: 'Products', path: '/brand/products' },

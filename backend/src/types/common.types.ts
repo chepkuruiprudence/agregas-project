@@ -4,7 +4,7 @@ export interface User {
   passwordHash: string;
   fullName: string;
   phone: string | null;
-  role: "customer" | "retailer" | "brand_marketer" | "admin";
+  role: "customer" | "retailer" | "brand" | "admin";
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;

@@ -13,6 +13,7 @@ import notificationRoutes from "./notification.routes";
 import retailerRoutes from "./retailer.routes";
 import brandRoutes from "./brand.routes";
 import adminRoutes from "./admin.routes";
+import paymentRoutes from "./payment.routes";
 
 export function registerRoutes(app: Application) {
   // Auth routes (public)
@@ -36,4 +37,6 @@ export function registerRoutes(app: Application) {
 
   // Error handling middleware (must be last)
   app.use(errorHandler);
+
+  app.use("/api/payments", paymentRoutes);
 } 

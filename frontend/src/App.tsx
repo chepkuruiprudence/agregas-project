@@ -63,7 +63,7 @@ function App() {
           <Route
             path="/dashboard/brand"
             element={
-              <ProtectedRoute requiredRoles={['brand_marketer']}>
+              <ProtectedRoute requiredRoles={['brand']}>
                 <BrandDashboard />
               </ProtectedRoute>
             }

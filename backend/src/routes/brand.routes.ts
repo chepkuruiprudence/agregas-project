@@ -1,44 +1,3 @@
-// import express from "express";
-// import * as brandController from "../controllers/brand.controller";
-// import { authenticateToken } from "../middleware/auth";
-// import { checkRole } from "../middleware/roleCheck";
-
-// const router = express.Router();
-
-// // GET /api/brand/products
-// router.get(
-//   "/products",
-//   authenticateToken,
-//   checkRole(["brand_marketer"]),
-//   brandController.getProducts
-// );
-
-// // PUT /api/brand/products/:productId/price
-// router.put(
-//   "/products/:productId/price",
-//   authenticateToken,
-//   checkRole(["brand_marketer"]),
-//   brandController.setBasePrice
-// );
-
-// // GET /api/brand/retailers
-// router.get(
-//   "/retailers",
-//   authenticateToken,
-//   checkRole(["brand_marketer"]),
-//   brandController.getRetailers
-// );
-
-// // GET /api/brand/analytics
-// router.get(
-//   "/analytics",
-//   authenticateToken,
-//   checkRole(["brand_marketer"]),
-//   brandController.getAnalytics
-// );
-
-// export default router;
-
 import express from "express";
 import { authenticateToken } from "../middleware/auth";
 import { checkRole } from "../middleware/roleCheck";
@@ -57,10 +16,10 @@ import {
 const router = express.Router();
 
 /**
- * All brand routes require authentication and brand_marketer role
+ * All brand routes require authentication and brandrole
  */
 router.use(authenticateToken);
-router.use(checkRole(["brand_marketer"]));
+router.use(checkRole(["brand"]));
 
 /**
  * Dashboard Statistics

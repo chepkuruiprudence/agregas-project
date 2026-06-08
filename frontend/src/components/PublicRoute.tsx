@@ -29,7 +29,7 @@ export const PublicRoute = ({ children }: PublicRouteProps) => {
     const dashboardRoutes: Record<string, string> = {
       customer: '/dashboard/customer',
       retailer: '/dashboard/retailer',
-      brand_marketer: '/dashboard/brand',
+      brand: '/dashboard/brand',
       admin: '/dashboard/admin',
     };
 

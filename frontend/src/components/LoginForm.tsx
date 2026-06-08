@@ -54,7 +54,7 @@ export const LoginForm = () => {
         navigate('/dashboard/customer');
       } else if (role === 'retailer') {
         navigate('/dashboard/retailer');
-      } else if (role === 'brand_marketer') {
+      } else if (role === 'brand') {
         navigate('/dashboard/brand');
       } else if (role === 'admin') {
         navigate('/dashboard/admin');

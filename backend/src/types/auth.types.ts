@@ -20,7 +20,7 @@ export interface RegisterRequest {
   password: string;
   fullName: string;
   phone: string;
-  role: 'customer' | 'retailer' | 'brand_marketer'; // ✅ REQUIRED
+  role: 'customer' | 'retailer' | 'brand'; // ✅ REQUIRED
   // Retailer fields
   businessName?: string;
   businessLicense?: string;

@@ -26,7 +26,7 @@ export const RegisterType = () => {
       buttonColor: 'bg-teal-500 hover:bg-teal-600',
     },
     {
-      id: 'brand_marketer',
+      id: 'brand',
       title: 'I\'m a Brand Partner',
       icon: TrendingUp,
       description: 'Manage products, pricing, and market analytics',

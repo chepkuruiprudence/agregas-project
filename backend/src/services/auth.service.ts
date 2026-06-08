@@ -86,7 +86,7 @@ export class AuthService {
       }
 
       // ✅ HANDLE BRAND MARKETER-SPECIFIC DATA
-      if (role === 'brand_marketer' && extraFields) {
+      if (role === 'brand' && extraFields) {
         try {
           // You'll need to create a brands table in your schema if it doesn't exist
           // For now, we'll just log it
