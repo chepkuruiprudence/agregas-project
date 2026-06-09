@@ -15,6 +15,7 @@ import { PaymentPage } from './components/PaymentPage';
 // @ts-ignore: side-effect import for CSS file without type declarations
 import './index.css';
 import { Profile } from './pages/Profile';
+import { SettlementDashboard } from './pages/SettlementDashboard';
 
 function App() {
   return (
@@ -85,6 +86,15 @@ function App() {
     </ProtectedRoute>
   }
 />
+
+          <Route
+            path="/dashboard/settlements"
+            element={
+              <ProtectedRoute requiredRoles={['admin']}>
+                <SettlementDashboard />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Catch all */}
           <Route path="*" element={<Home />} />

@@ -82,17 +82,6 @@ const PAYMENT_METHODS: {
   },
 ];
 
-/**
- * PaymentPage - ACSE Integrated
- * 
- * Flow:
- * 1. User selects payment method & fills details
- * 2. Clicks "Pay"
- * 3. Calls POST /api/payments/process
- * 4. Backend creates ledger entries (instant)
- * 5. Displays wallet balances & next steps
- * 6. Shows success screen
- */
 export const PaymentPage = () => {
   const { state } = useLocation() as { state: LocationState };
   const navigate = useNavigate();
@@ -101,7 +90,7 @@ export const PaymentPage = () => {
 
   const order = state?.order;
 
-  // ❌ If no order data, redirect
+  // If no order data, redirect
   if (!order) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -125,17 +114,13 @@ export const PaymentPage = () => {
   const [cardCvv, setCardCvv] = useState('');
   const [cardName, setCardName] = useState('');
   
-  // 🆕 Payment states
+  // Payment processing states
   const [paying, setPaying] = useState(false);
+  const [awaitingPin, setAwaitingPin] = useState(false);
   const [paid, setPaid] = useState(false);
   const [paymentResponse, setPaymentResponse] = useState<PaymentResponse | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  /**
-   * Calculate amounts from order data
-   * finalPrice already includes: base price + supply/demand + rebates
-   * We add delivery fee on top
-   */
   const parsePrice = (priceStr: string): number => {
     const cleaned = priceStr.replace(/[^0-9.]/g, '');
     return parseFloat(cleaned) || 0;
@@ -165,11 +150,9 @@ export const PaymentPage = () => {
   };
 
   /**
-   * 🆕 MAIN: Process payment with ACSE backend
-   * Calls: POST /api/payments/process
+   * MAIN: Process payment with ACSE backend
    */
   const handlePay = async () => {
-    // ✅ Validate selected method
     if (selectedMethod === 'mpesa' && !mpesaPhone.trim()) {
       addNotification('Please enter your M-Pesa phone number', 'error');
       return;
@@ -182,6 +165,7 @@ export const PaymentPage = () => {
       return;
     }
 
+    // Step 1: Immediately block UI buttons to avoid race conditions
     setPaying(true);
     setPaymentError(null);
 
@@ -192,10 +176,8 @@ export const PaymentPage = () => {
         amount: total,
       });
 
-      // 🆕 Generate idempotency key (prevents double charges)
       const idempotencyKey = `order-${order.id}-${Date.now()}`;
 
-      // 🆕 Call ACSE payment endpoint
       const response = await request('post', '/payments/process', {
         orderId: order.id,
         amount: total,
@@ -207,15 +189,26 @@ export const PaymentPage = () => {
       console.log('✅ Payment response from backend:', response.data);
 
       if (response.data?.success) {
-        // 🆕 Store response for display
         setPaymentResponse(response.data.data);
-        setPaid(true);
 
-        // 🆕 Show success notification with wallet info
-        addNotification(
-          `Payment processed! Ledger updated with ${response.data.data.ledgerEntriesCreated} entries`,
-          'success'
-        );
+        if (selectedMethod === 'mpesa') {
+          // Keep button disabled and prompt user to finish step on handset
+          setAwaitingPin(true);
+          addNotification('STK Push sent! Please complete by entering your PIN on your phone.', 'info');
+          
+          // FOR TESTING PURPOSES ONLY: Autoclose/mock success after 8 seconds 
+          setTimeout(() => {
+            setPaid(true);
+            setAwaitingPin(false);
+          }, 8000);
+        } else {
+          // Immediate payment execution for Cash/Card simulations
+          setPaid(true);
+          addNotification(
+            `Payment processed! Ledger updated with ${response.data.data.ledgerEntriesCreated} entries`,
+            'success'
+          );
+        }
 
         console.log('💰 Wallet balances:', response.data.data.walletBalances);
       } else {
@@ -231,30 +224,25 @@ export const PaymentPage = () => {
       
       setPaymentError(errorMsg);
       addNotification(errorMsg, 'error');
+      setAwaitingPin(false);
     } finally {
       setPaying(false);
     }
   };
 
-  /**
-   * 🆕 Success state after payment
-   * Shows:
-   * - Transaction ID
-   * - Wallet balances
-   * - Next steps based on payment method
-   */
+  // Condition to determine if button interaction should be blocked
+  const isButtonDisabled = paying || awaitingPin;
+
   if (paid && paymentResponse) {
     return (
       <>
         <Navbar />
         <div className="min-h-screen bg-gradient-to-b from-green-50 to-gray-50 flex items-center justify-center px-4 py-16">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-lg p-10 max-w-2xl w-full">
-            {/* Success Icon */}
             <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-6">
               <CheckCircle size={32} className="text-green-600" />
             </div>
 
-            {/* Main Message */}
             <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
               Payment Confirmed!
             </h2>
@@ -263,7 +251,6 @@ export const PaymentPage = () => {
               paid successfully. The ledger has been updated.
             </p>
 
-            {/* Payment Details */}
             <div className="bg-gray-50 rounded-xl p-6 mb-8 space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Transaction ID</span>
@@ -303,7 +290,6 @@ export const PaymentPage = () => {
               </div>
             </div>
 
-            {/* 🆕 Wallet Balances (ACSE) */}
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8">
               <div className="flex items-center gap-2 mb-4">
                 <Wallet size={18} className="text-blue-600" />
@@ -356,7 +342,6 @@ export const PaymentPage = () => {
               </div>
             </div>
 
-            {/* 🆕 Next Steps (ACSE) */}
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-8">
               <div className="flex items-center gap-2 mb-3">
                 <TrendingUp size={18} className="text-amber-600" />
@@ -462,7 +447,6 @@ export const PaymentPage = () => {
               </div>
             </div>
 
-            {/* Actions */}
             <div className="flex gap-3">
               <button
                 onClick={() => navigate('/orders')}
@@ -484,26 +468,22 @@ export const PaymentPage = () => {
     );
   }
 
-  /**
-   * Main payment page
-   */
   return (
     <>
       <Navbar />
 
       <div className="min-h-screen bg-gray-50 py-8 sm:py-12">
         <div className="max-w-3xl mx-auto px-4">
-          {/* Back button */}
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
+            disabled={isButtonDisabled}
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors disabled:opacity-40 disabled:pointer-events-none"
           >
             <ChevronLeft size={16} />
             Back to Orders
           </button>
 
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-6">
-            {/* ── LEFT: Payment Form ─────────────────────────────────── */}
             <div className="sm:col-span-3 space-y-5">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Complete Payment</h1>
@@ -512,7 +492,6 @@ export const PaymentPage = () => {
                 </p>
               </div>
 
-              {/* 🆕 Error display */}
               {paymentError && (
                 <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3.5 flex gap-3">
                   <AlertCircle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
@@ -523,13 +502,12 @@ export const PaymentPage = () => {
                 </div>
               )}
 
-              {/* Method selector */}
               <div className="space-y-2">
                 {PAYMENT_METHODS.map((method) => (
                   <button
                     key={method.id}
                     onClick={() => setSelectedMethod(method.id)}
-                    disabled={paying}
+                    disabled={isButtonDisabled}
                     className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border-2 transition-all text-left disabled:opacity-50 ${
                       selectedMethod === method.id
                         ? 'border-violet-500 bg-violet-50'
@@ -570,7 +548,6 @@ export const PaymentPage = () => {
                 ))}
               </div>
 
-              {/* Dynamic form fields */}
               {selectedMethod === 'mpesa' && (
                 <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
                   <h3 className="text-sm font-semibold text-gray-700">M-Pesa Details</h3>
@@ -587,7 +564,7 @@ export const PaymentPage = () => {
                         placeholder="7XX XXX XXX"
                         value={mpesaPhone}
                         onChange={(e) => setMpesaPhone(e.target.value)}
-                        disabled={paying}
+                        disabled={isButtonDisabled}
                         className="w-full pl-12 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 disabled:opacity-50"
                       />
                     </div>
@@ -610,7 +587,7 @@ export const PaymentPage = () => {
                       placeholder="Jane Doe"
                       value={cardName}
                       onChange={(e) => setCardName(e.target.value)}
-                      disabled={paying}
+                      disabled={isButtonDisabled}
                       className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 disabled:opacity-50"
                     />
                   </div>
@@ -623,7 +600,7 @@ export const PaymentPage = () => {
                       placeholder="1234 5678 9012 3456"
                       value={cardNumber}
                       onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                      disabled={paying}
+                      disabled={isButtonDisabled}
                       className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 disabled:opacity-50 tracking-widest"
                     />
                   </div>
@@ -637,7 +614,7 @@ export const PaymentPage = () => {
                         placeholder="MM/YY"
                         value={cardExpiry}
                         onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
-                        disabled={paying}
+                        disabled={isButtonDisabled}
                         className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 disabled:opacity-50"
                       />
                     </div>
@@ -649,7 +626,7 @@ export const PaymentPage = () => {
                         maxLength={4}
                         value={cardCvv}
                         onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, ''))}
-                        disabled={paying}
+                        disabled={isButtonDisabled}
                         className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 disabled:opacity-50"
                       />
                     </div>
@@ -667,18 +644,24 @@ export const PaymentPage = () => {
                 </div>
               )}
 
-              {/* 🆕 Pay button (now calls backend) */}
               <button
                 onClick={handlePay}
-                disabled={paying}
+                disabled={isButtonDisabled}
                 className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-400 text-white font-semibold py-3.5 rounded-xl transition-colors text-sm"
               >
-                {paying ? (
+                {paying && (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Processing…
+                    Connecting to Gateway…
                   </>
-                ) : (
+                )}
+                {awaitingPin && (
+                  <>
+                    <Loader2 size={16} className="animate-spin text-amber-200" />
+                    Please check phone & enter PIN…
+                  </>
+                )}
+                {!paying && !awaitingPin && (
                   <>
                     Pay KES {total.toLocaleString()}
                     <ChevronLeft size={16} className="rotate-180" />
@@ -691,10 +674,8 @@ export const PaymentPage = () => {
               </p>
             </div>
 
-            {/* ── RIGHT: Order Summary ───────────────────────────────── */}
             <div className="sm:col-span-2">
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden sticky top-6">
-                {/* Header */}
                 <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
                     <Flame size={14} className="text-violet-500" />
@@ -703,7 +684,6 @@ export const PaymentPage = () => {
                 </div>
 
                 <div className="px-5 py-4 space-y-4">
-                  {/* Order details */}
                   <div className="space-y-2.5">
                     <div className="flex items-start gap-2">
                       <Package size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
@@ -720,7 +700,6 @@ export const PaymentPage = () => {
                     </div>
                   </div>
 
-                  {/* Price breakdown */}
                   <div className="border-t border-gray-50 pt-3 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Subtotal</span>
@@ -732,7 +711,6 @@ export const PaymentPage = () => {
                     </div>
                   </div>
 
-                  {/* Total */}
                   <div className="bg-gray-50 rounded-xl px-4 py-3 flex justify-between items-center">
                     <span className="text-sm font-semibold text-gray-700">Total</span>
                     <span className="text-lg font-bold text-violet-600">
@@ -740,7 +718,6 @@ export const PaymentPage = () => {
                     </span>
                   </div>
 
-                  {/* 🆕 ACSE Info Box */}
                   <div className="bg-blue-50 rounded-xl px-4 py-3 text-[11px] text-blue-700 space-y-1">
                     <div className="font-semibold">💡 ACSE System</div>
                     <div>

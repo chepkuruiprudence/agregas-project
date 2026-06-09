@@ -78,4 +78,9 @@ router.post(
   paymentController.refundPayment
 );
 
+router.post(
+  '/mpesa/callback',
+  paymentController.handleMpesaCallback
+);
+
 export default router;

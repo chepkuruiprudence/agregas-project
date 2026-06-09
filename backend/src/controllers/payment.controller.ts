@@ -1,8 +1,13 @@
+// backend/src/controllers/payment.controller.ts
+
 import { Request, Response, NextFunction } from "express";
 import { paymentService } from "../services/payment.service";
+import { mpesaService } from "../services/mpesa.service"; // 🆕 Integrated
 import { AppError } from "../middleware/errorHandler";
-import { v4 as uuidv4 } from "uuid"; // npm install uuid
 
+/**
+ * OPTIONAL: Initiate payment acknowledgment
+ */
 export async function initiatePayment(
   req: Request,
   res: Response,
@@ -19,14 +24,10 @@ export async function initiatePayment(
       throw new AppError(400, "orderId and paymentMethod are required");
     }
 
-    // Validate payment method
     const validMethods = ["mpesa", "card", "cash"];
     if (!validMethods.includes(paymentMethod)) {
       throw new AppError(400, "Invalid payment method");
     }
-
-    // Here you would integrate with M-Pesa, Stripe, etc.
-    // For now, just acknowledge the request
 
     res.status(202).json({
       success: true,
@@ -47,14 +48,6 @@ export async function initiatePayment(
 /**
  * MAIN PAYMENT ENDPOINT
  * This is called from PaymentPage when user clicks "Pay"
- * 
- * Request body:
- * {
- *   orderId: 123,
- *   amount: 3000,
- *   paymentMethod: "mpesa" | "card" | "cash",
- *   phoneNumber?: "254712345678" (M-Pesa)
- * }
  */
 export async function processPayment(
   req: Request,
@@ -81,16 +74,15 @@ export async function processPayment(
     }
 
     // Idempotency: use a stable transaction ID
-    // In production, you'd use the request's Idempotency-Key header
     const idempotencyKey =
       req.headers["idempotency-key"] || `tx-${orderId}-${Date.now()}`;
 
     console.log(
-      `💳 Processing ${paymentMethod} payment for order ${orderId}, amount ${amount} KES`
+      `实用 Processing ${paymentMethod} payment for order ${orderId}, amount ${amount} KES`
     );
 
     // Call payment service (handles ledger, wallets, etc)
-    const result = await paymentService.processPayment({
+    const paymentResult = await paymentService.processPayment({
       orderId,
       customerId: req.user.userId,
       amount,
@@ -99,37 +91,77 @@ export async function processPayment(
     });
 
     // STEP 1: If it's a duplicate, return cached result
-    if (result.isDuplicate) {
+    if (paymentResult.isDuplicate) {
       return res.status(200).json({
         success: true,
         statusCode: 200,
         message: "Payment already processed (idempotent)",
-        data: result,
+        data: paymentResult,
         timestamp: new Date().toISOString(),
       });
     }
 
-    // STEP 2: If it's M-Pesa, initiate STK Push or API call
+    // STEP 2: M-PESA: Initiate STK Push
     if (paymentMethod === "mpesa") {
-      // TODO: Call Daraja API here
-      // For now, just acknowledge
-      console.log(
-        `📱 M-Pesa: would send STK to ${phoneNumber || "registered phone"}`
-      );
+      if (!phoneNumber) {
+        throw new AppError(400, "phoneNumber is required for M-Pesa payments");
+      }
+
+      try {
+        console.log(`📱 Initiating STK Push to ${phoneNumber}`);
+
+        // Call M-Pesa service
+        const stkResponse = await mpesaService.initiateSTKPush(
+          orderId,
+          amount,
+          phoneNumber
+        );
+
+        console.log(`✓ STK Push sent, awaiting customer PIN entry`);
+
+        return res.status(200).json({
+          success: true,
+          statusCode: 200,
+          message: "M-Pesa payment initiated",
+          data: {
+            transactionId: paymentResult.transactionId,
+            orderId,
+            amount,
+            paymentMethod: "mpesa",
+            walletBalances: paymentResult.walletBalances,
+            ledgerEntriesCreated: paymentResult.ledgerEntries,
+            mpesaDetails: {
+              merchantRequestId: stkResponse.MerchantRequestID,
+              checkoutRequestId: stkResponse.CheckoutRequestID,
+              customerMessage: stkResponse.CustomerMessage,
+            },
+            nextSteps:
+              "STK prompt sent to customer phone. Awaiting PIN entry and M-Pesa callback confirmation.",
+          },
+          timestamp: new Date().toISOString(),
+        });
+      } catch (mpesaError: any) {
+        console.error("❌ M-Pesa STK Push failed:", mpesaError.message);
+        // Payment ledger was created, but M-Pesa API integration layer failed
+        throw new AppError(
+          500,
+          mpesaError.message || "Failed to send M-Pesa STK prompt"
+        );
+      }
     }
 
-    // STEP 3: If it's card, redirect to Stripe/Flutterwave
+    // STEP 3: Card payment
     if (paymentMethod === "card") {
-      // TODO: Create Stripe session here
-      console.log(`💳 Card: would create payment session`);
+      console.log(`💳 Card payment: would redirect to payment gateway`);
+      // TODO: Integrate Stripe, Flutterwave, etc.
     }
 
-    // STEP 4: If it's cash, mark as pending until retailer confirms
+    // STEP 4: Cash on delivery
     if (paymentMethod === "cash") {
-      console.log(`💵 Cash: awaiting retailer confirmation`);
+      console.log(`💵 Cash on delivery: awaiting retailer confirmation`);
     }
 
-    // Return success with wallet balances
+    // Fallback response for Card or Cash payments
     const nextStepsMap: Record<"mpesa" | "card" | "cash", string> = {
       mpesa: "STK prompt sent to customer phone (awaiting PIN entry)",
       card: "Redirect to payment gateway (3D Secure may apply)",
@@ -141,12 +173,12 @@ export async function processPayment(
       statusCode: 200,
       message: "Payment processed successfully",
       data: {
-        transactionId: result.transactionId,
+        transactionId: paymentResult.transactionId,
         orderId,
         amount,
         paymentMethod,
-        walletBalances: result.walletBalances,
-        ledgerEntriesCreated: result.ledgerEntries,
+        walletBalances: paymentResult.walletBalances,
+        ledgerEntriesCreated: paymentResult.ledgerEntries,
         nextSteps: nextStepsMap[paymentMethod as "mpesa" | "card" | "cash"],
       },
       timestamp: new Date().toISOString(),
@@ -157,8 +189,52 @@ export async function processPayment(
 }
 
 /**
- * Confirm payment after M-Pesa/card gateway response
- * Called by M-Pesa callback or Stripe webhook
+ * M-PESA CALLBACK ENDPOINT
+ * Receives callback asynchronously from Safaricom after customer inputs PIN
+ */
+export async function handleMpesaCallback(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    console.log("📥 M-Pesa callback received");
+    console.log("Callback data:", JSON.stringify(req.body, null, 2));
+
+    const callbackResult = mpesaService.parseCallback(req.body);
+    console.log("Parsed callback:", callbackResult);
+
+    if (callbackResult.success) {
+      console.log(`✅ M-Pesa payment successful`);
+      console.log(`Receipt: ${callbackResult.mpesaReceiptNumber}`);
+      console.log(`Amount: ${callbackResult.amount} KES`);
+      console.log(`Date: ${callbackResult.transactionDate}`);
+
+      // TODO: Update order status to "paid" / "confirmed" inside DB
+      // TODO: Broadcast via WebSockets to front-end
+    } else {
+      console.log(`❌ M-Pesa payment failed`);
+      console.log(`Result: ${callbackResult.resultDesc}`);
+
+      // TODO: Update order status to "payment_failed"
+    }
+
+    // Safaricom requires an explicit 200 OK acknowledgment to prevent retries
+    res.status(200).json({
+      success: true,
+      message: "Callback received",
+    });
+  } catch (error) {
+    console.error("Error handling M-Pesa callback:", error);
+    res.status(200).json({
+      success: false,
+      message: "Error processing callback",
+    });
+  }
+}
+
+/**
+ * General gateway confirmation (e.g., fallback webhook manually fired or third-party webhooks)
  */
 export async function confirmPayment(
   req: Request,
@@ -176,12 +252,6 @@ export async function confirmPayment(
       `✓ Payment confirmed via ${gateway}: ${transactionId} -> ${status}`
     );
 
-    // In production, you would:
-    // 1. Verify the callback signature
-    // 2. Check the transaction status from the gateway
-    // 3. Update order status based on confirmation
-    // 4. Trigger settlement obligation creation
-
     res.status(200).json({
       success: true,
       statusCode: 200,
@@ -198,7 +268,7 @@ export async function confirmPayment(
 }
 
 /**
- * Get payment status
+ * Get payment status / history
  */
 export async function getPaymentStatus(
   req: Request,
@@ -212,7 +282,9 @@ export async function getPaymentStatus(
       throw new AppError(400, "orderId is required");
     }
 
-    const history = await paymentService.getPaymentHistory(parseInt(orderId as string));
+    const history = await paymentService.getPaymentHistory(
+      parseInt(orderId as string)
+    );
 
     res.status(200).json({
       success: true,
@@ -233,7 +305,6 @@ export async function getPaymentStatus(
 /**
  * Refund (creates reversal ledger entry)
  * NEVER deletes ledger entries, NEVER updates them
- * Instead, create new entries to reverse
  */
 export async function refundPayment(
   req: Request,
@@ -251,11 +322,7 @@ export async function refundPayment(
       throw new AppError(400, "orderId and reason are required");
     }
 
-    // TODO: Implement refund logic
-    // 1. Get original payment ledger entries
-    // 2. Create reversing entries (same amount, opposite direction)
-    // 3. Verify balance still matches
-    // 4. Update order status to "refunded"
+    // TODO: Implement refund logic reversing existing transactions.
 
     res.status(200).json({
       success: true,

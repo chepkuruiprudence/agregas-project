@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { registerRoutes } from "./routes";
+import { startSettlementScheduler } from "./jobs/settlement-scheduler";
 
 dotenv.config();
 
@@ -25,4 +26,13 @@ app.get("/health", (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ AGREGAS Server running on http://localhost:${PORT}`);
   console.log(`📝 Health check: http://localhost:${PORT}/health`);
+});
+
+
+// Start settlement scheduler
+startSettlementScheduler();
+
+app.listen(PORT, () => {
+  console.log('✓ AGREGAS ACSE Backend Running');
+  console.log('✓ Settlement scheduler active');
 });

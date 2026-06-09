@@ -13,7 +13,7 @@ export class AuthService {
     password: string,
     fullName: string,
     phone: string,
-    role: string,
+    role: "customer" | "retailer" | "brand" | "admin",
     extraFields?: Record<string, any>
   ) {
     try {
