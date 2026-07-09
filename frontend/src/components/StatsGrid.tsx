@@ -33,9 +33,9 @@ export const StatsGrid = () => {
 
       // ✅ FIXED: Call the correct endpoint
       const [ordersRes, loyaltyRes, cgcRes] = await Promise.all([
-        request('get', '/orders'),  // ✅ Changed from /orders/customer to /orders
-        request('get', '/loyalty/balance'),
-        request('get', '/cgc/balance'),
+        request('get', '/orders/customer'),  // ✅ Changed from /orders/customer to /orders
+        request('get', '/loyalty/balance/:customerId'),
+        request('get', '/cgc/balance/:customerId'),
       ]);
 
       console.log('✓ Orders response:', ordersRes.data);

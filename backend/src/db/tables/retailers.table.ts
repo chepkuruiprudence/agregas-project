@@ -20,6 +20,7 @@ export const retailers = pgTable(
       .notNull()
       .references(() => users.id),
     business_name: varchar("business_name", { length: 255 }).notNull(),
+    business_license: varchar("business_license", { length: 255 }).default("Pending"),
     latitude: decimal("latitude", { precision: 10, scale: 8 }).notNull(),
     longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
     address: text("address").notNull(),

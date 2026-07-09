@@ -43,7 +43,7 @@ export const CustomerDashboard = () => {
   const fetchRecentOrders = async () => {
     try {
       setOrdersLoading(true);
-      const response = await request('get', '/orders');
+      const response = await request('get', '/orders/customer');
       
       if (response.data?.data && Array.isArray(response.data.data)) {
         // Get first 3 orders

@@ -19,6 +19,7 @@ export const users = pgTable(
     phone: varchar("phone", { length: 20 }),
     role: userRoleEnum("role").notNull().default("customer"),
     is_active: boolean("is_active").notNull().default(true),
+    email_verified: boolean("email_verified").default(false),
     created_at: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

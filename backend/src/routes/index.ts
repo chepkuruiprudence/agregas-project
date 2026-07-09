@@ -34,9 +34,10 @@ export function registerRoutes(app: Application) {
   app.use("/api/retailer", retailerRoutes);
   app.use("/api/brand", brandRoutes);
   app.use("/api/admin", adminRoutes);
+  app.use("/api/payments", paymentRoutes);
 
   // Error handling middleware (must be last)
   app.use(errorHandler);
 
-  app.use("/api/payments", paymentRoutes);
+  
 } 

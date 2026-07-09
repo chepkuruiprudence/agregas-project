@@ -121,7 +121,7 @@ export async function getRepaymentSchedule(
       throw new AppError(400, "Loan ID is required");
     }
 
-    const schedule = await gasCreditService.getRepaymentSchedule(parseInt(loanId));
+    const schedule = await gasCreditService.getRepaymentSchedule(parseInt(loanId as string));
 
     res.status(200).json({
       success: true,

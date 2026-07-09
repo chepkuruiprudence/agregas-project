@@ -1,171 +1,106 @@
+// backend/src/controllers/retailer.controller.ts
 import { Request, Response, NextFunction } from "express";
 import { retailerService } from "../services/retailer.service";
 import { AppError } from "../middleware/errorHandler";
 
-export async function getInventory(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+// ─── Dashboard endpoints (called by RetailerDashboard.tsx) ──────────────────
+
+/** GET /api/retailer/stats */
+export async function getStats(req: Request, res: Response, next: NextFunction) {
   try {
-    const { retailerId } = req.params;
-
-    if (!retailerId) {
-      throw new AppError(400, "Retailer ID is required");
-    }
-
-    const inventory = await retailerService.getRetailerInventory(
-      parseInt(retailerId as string)
-    );
-
-    res.status(200).json({
-      success: true,
-      statusCode: 200,
-      message: "Inventory retrieved",
-      data: inventory,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    next(error);
-  }
+    const data = await retailerService.getRetailerStats(req.user!.userId);
+    res.status(200).json({ success: true, statusCode: 200, message: "Stats retrieved", data, timestamp: new Date().toISOString() });
+  } catch (error) { next(error); }
 }
 
-export async function updateInventory(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+/** GET /api/retailer/orders */
+export async function getOrders(req: Request, res: Response, next: NextFunction) {
   try {
-    const { retailerId } = req.params;
-    const { newQuantity } = req.body;
-
-    if (!retailerId || newQuantity === undefined) {
-      throw new AppError(400, "Retailer ID and new quantity are required");
-    }
-
-    const updated = await retailerService.updateInventory(
-      parseInt(retailerId as string),
-      newQuantity
-    );
-
-    res.status(200).json({
-      success: true,
-      statusCode: 200,
-      message: "Inventory updated",
-      data: updated,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    next(error);
-  }
+    const data = await retailerService.getRetailerOrders(req.user!.userId);
+    res.status(200).json({ success: true, statusCode: 200, message: "Orders retrieved", data, timestamp: new Date().toISOString() });
+  } catch (error) { next(error); }
 }
 
-export async function getPendingOrders(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+/** GET /api/retailer/inventory */
+export async function getInventory(req: Request, res: Response, next: NextFunction) {
   try {
-    const { retailerId } = req.params;
-
-    if (!retailerId) {
-      throw new AppError(400, "Retailer ID is required");
-    }
-
-    const orders = await retailerService.getPendingOrders(parseInt(retailerId as string));
-
-    res.status(200).json({
-      success: true,
-      statusCode: 200,
-      message: "Pending orders retrieved",
-      data: orders,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    next(error);
-  }
+    const data = await retailerService.getRetailerInventory(req.user!.userId);
+    res.status(200).json({ success: true, statusCode: 200, message: "Inventory retrieved", data, timestamp: new Date().toISOString() });
+  } catch (error) { next(error); }
 }
 
-export async function acceptOrder(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+/** GET /api/retailer/mpesa-settings */
+export async function getMPesaSettings(req: Request, res: Response, next: NextFunction) {
   try {
-    const { retailerId, orderId } = req.params;
-
-    if (!retailerId || !orderId) {
-      throw new AppError(400, "Retailer ID and Order ID are required");
-    }
-
-    const result = await retailerService.acceptOrder(
-      parseInt(retailerId as string),
-      parseInt(orderId as string)
-    );
-
-    res.status(200).json({
-      success: true,
-      statusCode: 200,
-      message: "Order accepted",
-      data: result,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    next(error);
-  }
+    const data = await retailerService.getMPesaSettings(req.user!.userId);
+    res.status(200).json({ success: true, statusCode: 200, message: "M-Pesa settings retrieved", data, timestamp: new Date().toISOString() });
+  } catch (error) { next(error); }
 }
 
-export async function rejectOrder(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+/** PUT /api/retailer/mpesa-settings */
+export async function saveMPesaSettings(req: Request, res: Response, next: NextFunction) {
   try {
-    const { retailerId, orderId } = req.params;
-
-    if (!retailerId || !orderId) {
-      throw new AppError(400, "Retailer ID and Order ID are required");
-    }
-
-    const result = await retailerService.rejectOrder(
-      parseInt(retailerId as string),
-      parseInt(orderId as string)
-    );
-
-    res.status(200).json({
-      success: true,
-      statusCode: 200,
-      message: "Order rejected",
-      data: result,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    next(error);
-  }
+    const { phone } = req.body as { phone: string };
+    if (!phone) throw new AppError(400, "Phone number is required");
+    const data = await retailerService.updateMPesaSettings(req.user!.userId, phone);
+    res.status(200).json({ success: true, statusCode: 200, message: "M-Pesa settings saved", data, timestamp: new Date().toISOString() });
+  } catch (error) { next(error); }
 }
 
-export async function getAnalytics(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+// ─── Parameterised endpoints ─────────────────────────────────────────────────
+
+/** GET /api/retailer/inventory/:retailerId */
+export async function getInventoryById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { retailerId } = req.params;
+    const data = await retailerService.getRetailerInventory(req.user!.userId);
+    res.status(200).json({ success: true, statusCode: 200, message: "Inventory retrieved", data, timestamp: new Date().toISOString() });
+  } catch (error) { next(error); }
+}
 
-    if (!retailerId) {
-      throw new AppError(400, "Retailer ID is required");
-    }
+/** PUT /api/retailer/inventory/:retailerId */
+export async function updateInventory(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { newQuantity, itemId = 1 } = req.body;
+    if (newQuantity === undefined) throw new AppError(400, "newQuantity is required");
+    const data = await retailerService.updateInventoryItem(req.user!.userId, itemId, newQuantity);
+    res.status(200).json({ success: true, statusCode: 200, message: "Inventory updated", data, timestamp: new Date().toISOString() });
+  } catch (error) { next(error); }
+}
 
-    const analytics = await retailerService.getAnalytics(parseInt(retailerId as string));
+/** GET /api/retailer/orders/pending/:retailerId */
+export async function getPendingOrders(req: Request, res: Response, next: NextFunction) {
+  try {
+    const all = await retailerService.getRetailerOrders(req.user!.userId, 50);
+    const data = all.filter((o: any) => o.status === "pending");
+    res.status(200).json({ success: true, statusCode: 200, message: "Pending orders retrieved", data, timestamp: new Date().toISOString() });
+  } catch (error) { next(error); }
+}
 
-    res.status(200).json({
-      success: true,
-      statusCode: 200,
-      message: "Analytics retrieved",
-      data: analytics,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    next(error);
-  }
+/** PUT /api/retailer/orders/:retailerId/:orderId/accept */
+export async function acceptOrder(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { orderId } = req.params;
+    if (!orderId) throw new AppError(400, "Order ID is required");
+    const data = await retailerService.acceptOrder(req.user!.userId, parseInt(orderId as string));
+    res.status(200).json({ success: true, statusCode: 200, message: "Order accepted", data, timestamp: new Date().toISOString() });
+  } catch (error) { next(error); }
+}
+
+/** PUT /api/retailer/orders/:retailerId/:orderId/reject */
+export async function rejectOrder(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { orderId } = req.params;
+    if (!orderId) throw new AppError(400, "Order ID is required");
+    const data = await retailerService.rejectOrder(req.user!.userId, parseInt(orderId as string ));
+    res.status(200).json({ success: true, statusCode: 200, message: "Order rejected", data, timestamp: new Date().toISOString() });
+  } catch (error) { next(error); }
+}
+
+/** GET /api/retailer/analytics/:retailerId */
+export async function getAnalytics(req: Request, res: Response, next: NextFunction) {
+  try {
+    const period = (req.query.period as 'daily' | 'weekly' | 'monthly') || 'monthly';
+    const data = await retailerService.getPerformanceMetrics(req.user!.userId, period);
+    res.status(200).json({ success: true, statusCode: 200, message: "Analytics retrieved", data, timestamp: new Date().toISOString() });
+  } catch (error) { next(error); }
 }

@@ -3,7 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
-import { Register } from './pages/Register';
+import Register from './pages/Register';
 import { RegisterType } from './pages/RegisterType';
 import { Orders } from './pages/Orders';
 import { CustomerDashboard } from './pages/CustomerDashboard';
@@ -16,6 +16,7 @@ import { PaymentPage } from './components/PaymentPage';
 import './index.css';
 import { Profile } from './pages/Profile';
 import { SettlementDashboard } from './pages/SettlementDashboard';
+import { VerifyOTPForm } from './pages/Verifyotpform';
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
 <Route path="/register-type" element={<PublicRoute><RegisterType /></PublicRoute>} />
 <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+<Route path ="/verify-otp" element={<PublicRoute><VerifyOTPForm /></PublicRoute>} />
 
           {/* Protected Routes */}
           <Route

@@ -1,3 +1,4 @@
+// backend/src/routes/retailer.routes.ts
 import express from "express";
 import * as retailerController from "../controllers/retailer.controller";
 import { authenticateToken } from "../middleware/auth";
@@ -5,52 +6,27 @@ import { checkRole } from "../middleware/roleCheck";
 
 const router = express.Router();
 
-// GET /api/retailer/inventory/:retailerId
-router.get(
-  "/inventory/:retailerId",
-  authenticateToken,
-  checkRole(["retailer"]),
-  retailerController.getInventory
-);
+const isRetailer = [authenticateToken, checkRole(["retailer"])];
 
-// PUT /api/retailer/inventory/:retailerId
-router.put(
-  "/inventory/:retailerId",
-  authenticateToken,
-  checkRole(["retailer"]),
-  retailerController.updateInventory
-);
+// ── Dashboard endpoints (called by RetailerDashboard.tsx) ────────────────────
+// GET  /api/retailer/stats          → active orders, stock, today sales, rating
+// GET  /api/retailer/orders         → last 5 orders for this retailer
+// GET  /api/retailer/inventory      → inventory items for this retailer
+// GET  /api/retailer/mpesa-settings → saved M-Pesa phone
+// PUT  /api/retailer/mpesa-settings → save M-Pesa phone
 
-// GET /api/retailer/orders/pending/:retailerId
-router.get(
-  "/orders/pending/:retailerId",
-  authenticateToken,
-  checkRole(["retailer"]),
-  retailerController.getPendingOrders
-);
+router.get("/stats",          ...isRetailer, retailerController.getStats);
+router.get("/orders",         ...isRetailer, retailerController.getOrders);
+router.get("/inventory",      ...isRetailer, retailerController.getInventory);
+router.get("/mpesa-settings", ...isRetailer, retailerController.getMPesaSettings);
+router.put("/mpesa-settings", ...isRetailer, retailerController.saveMPesaSettings);
 
-// PUT /api/retailer/orders/:retailerId/:orderId/accept
-router.put(
-  "/orders/:retailerId/:orderId/accept",
-  authenticateToken,
-  checkRole(["retailer"]),
-  retailerController.acceptOrder
-);
-
-// PUT /api/retailer/orders/:retailerId/:orderId/reject
-router.put(
-  "/orders/:retailerId/:orderId/reject",
-  authenticateToken,
-  checkRole(["retailer"]),
-  retailerController.rejectOrder
-);
-
-// GET /api/retailer/analytics/:retailerId
-router.get(
-  "/analytics/:retailerId",
-  authenticateToken,
-  checkRole(["retailer"]),
-  retailerController.getAnalytics
-);
+// ── Existing parameterised endpoints ────────────────────────────────────────
+router.get( "/inventory/:retailerId",                    ...isRetailer, retailerController.getInventoryById);
+router.put( "/inventory/:retailerId",                    ...isRetailer, retailerController.updateInventory);
+router.get( "/orders/pending/:retailerId",               ...isRetailer, retailerController.getPendingOrders);
+router.put( "/orders/:retailerId/:orderId/accept",       ...isRetailer, retailerController.acceptOrder);
+router.put( "/orders/:retailerId/:orderId/reject",       ...isRetailer, retailerController.rejectOrder);
+router.get( "/analytics/:retailerId",                    ...isRetailer, retailerController.getAnalytics);
 
 export default router;
