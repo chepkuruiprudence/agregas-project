@@ -188,13 +188,13 @@ export const ProfileForm = () => {
             </label>
             <input
               type="text"
-              value={user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1).toLowerCase() || ''}
+              value={user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase() : ''}
               disabled
               className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
         </div>
-
+                
         {/* RETAILER FIELDS */}
         {user?.role === 'retailer' && editing && (
           <div className="border-t pt-6">

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useNotifications } from '../hooks/useNotifications';
+// import { useNotifications } from '../hooks/useNotifications';
 import {
   validateEmail,
   validatePassword,
@@ -16,7 +16,7 @@ export const RegisterForm = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { register, isLoading, loginWithGoogle } = useAuth();
-  const { addNotification } = useNotifications();
+  // const { addNotification } = useNotifications();
   const [showPassword, setShowPassword] = useState(false);
 
   const role = searchParams.get('role') || 'customer';

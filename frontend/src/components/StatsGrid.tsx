@@ -18,6 +18,8 @@ export const StatsGrid = () => {
     subscriptionTier: 'None',
   });
   const [loading, setLoading] = useState(true);
+
+  // @ts-ignore
   const [error, setError] = useState(false);
 
   useEffect(() => {
