@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useNotifications } from '../hooks/useNotifications';
+// import { useNotifications } from '../hooks/useNotifications';
 import { validateEmail, validatePassword } from '../utils/validators';
 import { Eye, EyeOff, Fingerprint } from 'lucide-react';
 
 export const LoginForm = () => {
   const navigate = useNavigate();
   const { login, isLoading, loginWithPasskey } = useAuth();
-  const { addNotification } = useNotifications();
+  // const { addNotification } = useNotifications();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
