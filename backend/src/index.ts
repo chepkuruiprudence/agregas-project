@@ -3,6 +3,9 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { registerRoutes } from "./routes";
 import { startSettlementScheduler } from "./jobs/settlement-scheduler";
+import dns from "node:dns";
+
+dns.setDefaultResultOrder("ipv4first");
 
 dotenv.config();
 
