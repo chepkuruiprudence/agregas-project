@@ -1,3 +1,5 @@
+// 📁 src/utils/constants.ts - BETTER FIX
+
 export const PRICING_TIERS = {
   basic: {
     name: 'Basic',
@@ -6,7 +8,8 @@ export const PRICING_TIERS = {
     features: ['Daily delivery', 'Basic support', '5% loyalty points'],
     color: 'bg-blue-50',
     borderColor: 'border-blue-200',
-    icon: 'TrendingDown',  // ← String instead of component
+    icon: 'TrendingDown',
+    recommended: false,  // ← ADD THIS
   },
   standard: {
     name: 'Standard',
@@ -15,7 +18,7 @@ export const PRICING_TIERS = {
     features: ['Daily delivery', 'Priority support', '10% loyalty points', 'Free first delivery'],
     color: 'bg-blue-100',
     borderColor: 'border-blue-300',
-    icon: 'Star',  // ← String
+    icon: 'Star',
     recommended: true,
   },
   premium: {
@@ -25,38 +28,39 @@ export const PRICING_TIERS = {
     features: ['Same-day delivery', '24/7 support', '15% loyalty points', 'Free first 3 deliveries'],
     color: 'bg-primary-50',
     borderColor: 'border-primary-300',
-    icon: 'Zap',  // ← String
+    icon: 'Zap',
+    recommended: false,  // ← ADD THIS
   },
 };
 
 export const FEATURES = [
   {
-    icon: 'Zap',  // ← String
+    icon: 'Zap',
     title: 'Fast Delivery',
     description: 'Get your gas delivered within 2-4 hours',
   },
   {
-    icon: 'Shield',  // ← String
+    icon: 'Shield',
     title: 'Safe & Reliable',
     description: 'Verified retailers and secure transactions',
   },
   {
-    icon: 'TrendingDown',  // ← String
+    icon: 'TrendingDown',
     title: 'Best Prices',
     description: 'Dynamic pricing ensures competitive rates',
   },
   {
-    icon: 'Leaf',  // ← String
+    icon: 'Leaf',
     title: 'Environmental',
     description: 'Earn carbon credits for sustainable choices',
   },
   {
-    icon: 'Star',  // ← String
+    icon: 'Star',
     title: 'Loyalty Rewards',
     description: 'Earn and redeem points on every purchase',
   },
   {
-    icon: 'MapPin',  // ← String
+    icon: 'MapPin',
     title: 'Live Tracking',
     description: 'Track your delivery in real-time',
   },
@@ -65,25 +69,25 @@ export const FEATURES = [
 export const HOW_IT_WORKS = [
   {
     step: 1,
-    icon: 'Users',  // ← String
+    icon: 'Users',
     title: 'Sign Up',
     description: 'Create your account in seconds',
   },
   {
     step: 2,
-    icon: 'ShoppingCart',  // ← String
+    icon: 'ShoppingCart',
     title: 'Place Order',
     description: 'Select gas, quantity, and delivery address',
   },
   {
     step: 3,
-    icon: 'Truck',  // ← String
+    icon: 'Truck',
     title: 'Get Delivered',
     description: 'Track your delivery in real-time',
   },
   {
     step: 4,
-    icon: 'Gift',  // ← String
+    icon: 'Gift',
     title: 'Earn Rewards',
     description: 'Get loyalty points and carbon credits',
   },

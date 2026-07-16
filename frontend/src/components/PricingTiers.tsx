@@ -1,4 +1,4 @@
-// 📁 src/components/PricingTiers.tsx
+// 📁 src/components/PricingTiers.tsx - CORRECTED
 
 import { Link } from 'react-router-dom';
 import { PRICING_TIERS } from '../utils/constants';
@@ -6,11 +6,8 @@ import { Check } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getIcon } from '../utils/iconMap';
 
-interface PricingCardProps {
-  tier: typeof PRICING_TIERS.basic;
-}
-
-export const PricingTiers: React.FC<PricingCardProps> = ({ tier }) => {
+// NO PROPS INTERFACE - component handles all tiers internally
+export const PricingTiers = () => {
   const { isAuthenticated } = useAuth();
 
   return (
@@ -22,7 +19,7 @@ export const PricingTiers: React.FC<PricingCardProps> = ({ tier }) => {
         </p>
 
         <div className="grid md:grid-cols-3 gap-8">
-          {Object.entries(PRICING_TIERS).map(([key, tier]: any) => {
+          {Object.entries(PRICING_TIERS).map(([key, tier]) => {
             // Get the icon component from string
             const IconComponent = getIcon(tier.icon);
 
