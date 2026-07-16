@@ -14,6 +14,7 @@ export * from "./finance.tables.js";
 export * from "./oauth-accounts.table.js";
 export * from "./refresh-tokens.table.js";
 export * from "./email-verifications.table.js";
+export * from "./inventory.table.js";
 
 // Add these exports at the END of the file:
 

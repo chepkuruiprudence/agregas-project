@@ -14,6 +14,7 @@ import retailerRoutes from "./retailer.routes";
 import brandRoutes from "./brand.routes";
 import adminRoutes from "./admin.routes";
 import paymentRoutes from "./payment.routes";
+import inventoryRoutes from "./inventory.routes";
 
 export function registerRoutes(app: Application) {
   // Auth routes (public)
@@ -35,6 +36,7 @@ export function registerRoutes(app: Application) {
   app.use("/api/brand", brandRoutes);
   app.use("/api/admin", adminRoutes);
   app.use("/api/payments", paymentRoutes);
+  app.use('/api/retailers', inventoryRoutes);
 
   // Error handling middleware (must be last)
   app.use(errorHandler);
