@@ -1,4 +1,4 @@
-// backend/src/services/mpesa.service.ts
+// backend/src/services/mpesa.service.ts - FIXED
 
 import axios from 'axios';
 import { AppError } from '../middleware/errorHandler';
@@ -24,6 +24,11 @@ interface STKPushResponse {
   ResponseCode: string;
   ResponseDescription: string;
   CustomerMessage: string;
+}
+
+interface AccessTokenResponse {
+  access_token: string;
+  expires_in: string;
 }
 
 interface CallbackPayload {
@@ -96,7 +101,8 @@ export class MpesaService {
 
       const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
 
-      const response = await axios.get(
+      // ✅ FIX: Type the response as AccessTokenResponse
+      const response = await axios.get<AccessTokenResponse>(
         `${baseUrl}/oauth/v1/generate?grant_type=client_credentials`,
         {
           headers: {
@@ -174,7 +180,8 @@ export class MpesaService {
         AccountReference: payload.AccountReference,
       });
 
-      const response = await axios.post(
+      // ✅ FIX: Type the response as STKPushResponse
+      const response = await axios.post<STKPushResponse>(
         `${baseUrl}/mpesa/stkpush/v1/processrequest`,
         payload,
         {
@@ -271,7 +278,8 @@ export class MpesaService {
       console.log("Generated Password String:", password);
       console.log("===================================================");
 
-      const response = await axios.post(
+      // ✅ FIX: Type the response as unknown (or create a specific interface)
+      const response = await axios.post<Record<string, any>>(
         `${baseUrl}/mpesa/stkpushquery/v1/query`,
         {
           BusinessShortCode: shortCode,
