@@ -224,34 +224,36 @@
 
 // backend/src/services/email.service.ts
 
-import { Resend } from 'resend';
+// backend/src/services/email.service.ts
 
-/**
- * Email service powered by Resend (HTTP API)
- * Avoids SMTP port blocks and IPv6 ENETUNREACH issues on Render.
- */
+import nodemailer from 'nodemailer';
+
 export class EmailService {
-  private resend: Resend;
+  private transporter: nodemailer.Transporter;
   private defaultFrom: string;
 
   constructor() {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      console.warn('⚠️ RESEND_API_KEY environment variable is not set!');
-    }
+    this.defaultFrom = process.env.EMAIL_FROM || 'AGREGAS <agregaske@gmail.com>';
 
-    this.resend = new Resend(apiKey);
-    // Note: onboarding@resend.dev can only send emails to the email associated with your Resend account.
-    // Once you verify your custom domain in Resend, update process.env.EMAIL_FROM to something like 'AGREGAS <noreply@yourdomain.com>'
-    this.defaultFrom = process.env.EMAIL_FROM || 'AGREGAS <onboarding@resend.dev>';
+    // Configure Nodemailer with Google OAuth2
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type: 'OAuth2',
+        user: process.env.EMAIL_USER || 'agregaske@gmail.com',
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
+      },
+    });
 
-    console.log('📧 Resend Email service initialized');
+    console.log('📧 Google OAuth2 Email Service initialized');
   }
 
   /**
-   * Send OTP verification code
+   * Send OTP Verification Email
    */
-  async sendOTPEmail(to: string, otpCode: string): Promise<void> {
+  async sendOTPEmail(email: string, otpCode: string): Promise<void> {
     try {
       const htmlContent = `
         <!DOCTYPE html>
@@ -272,31 +274,25 @@ export class EmailService {
         </html>
       `;
 
-      const { data, error } = await this.resend.emails.send({
+      await this.transporter.sendMail({
         from: this.defaultFrom,
-        to: [to],
+        to: email,
         subject: `Your AGREGAS verification code: ${otpCode}`,
-        text: `Your OTP code is ${otpCode}`,
         html: htmlContent,
       });
 
-      if (error) {
-        console.error('❌ Resend delivery error:', error);
-        throw new Error(error.message);
-      }
-
-      console.log(`✓ OTP email sent via Resend to ${to} (ID: ${data?.id})`);
+      console.log(`✓ OTP email sent via Google OAuth2 to ${email}`);
     } catch (error) {
-      console.error('❌ Failed to send OTP email:', error);
+      console.error('❌ Failed to send OTP email via Google OAuth2:', error);
       throw error;
     }
   }
 
   /**
-   * Send password reset link
+   * Send Password Reset Link
    */
   async sendPasswordResetEmail(
-    to: string,
+    email: string,
     resetToken: string,
     userName: string
   ): Promise<void> {
@@ -335,19 +331,14 @@ export class EmailService {
         </html>
       `;
 
-      const { data, error } = await this.resend.emails.send({
+      await this.transporter.sendMail({
         from: this.defaultFrom,
-        to: [to],
+        to: email,
         subject: 'Reset your AGREGAS password',
         html: htmlContent,
       });
 
-      if (error) {
-        console.error('❌ Resend password reset error:', error);
-        throw new Error(error.message);
-      }
-
-      console.log(`✓ Password reset email sent via Resend to ${to} (ID: ${data?.id})`);
+      console.log(`✓ Password reset email sent to ${email}`);
     } catch (error) {
       console.error('❌ Failed to send password reset email:', error);
       throw error;
@@ -355,9 +346,9 @@ export class EmailService {
   }
 
   /**
-   * Send welcome email after signup
+   * Send Welcome Email
    */
-  async sendWelcomeEmail(to: string, userName: string): Promise<void> {
+  async sendWelcomeEmail(email: string, userName: string): Promise<void> {
     try {
       const htmlContent = `
         <!DOCTYPE html>
@@ -381,30 +372,24 @@ export class EmailService {
         </html>
       `;
 
-      const { data, error } = await this.resend.emails.send({
+      await this.transporter.sendMail({
         from: this.defaultFrom,
-        to: [to],
+        to: email,
         subject: 'Welcome to AGREGAS',
         html: htmlContent,
       });
 
-      if (error) {
-        console.error('⚠️ Resend welcome email error:', error);
-        return;
-      }
-
-      console.log(`✓ Welcome email sent via Resend to ${to} (ID: ${data?.id})`);
+      console.log(`✓ Welcome email sent to ${email}`);
     } catch (error) {
-      console.error('❌ Failed to send welcome email:', error);
-      // Silent catch so welcome email failure doesn't crash signup flow
+      console.error('⚠️ Failed to send welcome email:', error);
     }
   }
 
   /**
-   * Send security alert (new device login)
+   * Send Security Alert (new device login)
    */
   async sendSecurityAlertEmail(
-    to: string,
+    email: string,
     userName: string,
     ip: string,
     device: string
@@ -428,14 +413,14 @@ export class EmailService {
         </html>
       `;
 
-      await this.resend.emails.send({
+      await this.transporter.sendMail({
         from: this.defaultFrom,
-        to: [to],
+        to: email,
         subject: 'AGREGAS security alert: New login',
         html: htmlContent,
       });
 
-      console.log(`✓ Security alert sent to ${to}`);
+      console.log(`✓ Security alert sent to ${email}`);
     } catch (error) {
       console.error('❌ Failed to send security alert:', error);
     }
