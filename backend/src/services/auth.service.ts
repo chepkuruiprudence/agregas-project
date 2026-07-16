@@ -24,7 +24,7 @@ export class AuthService {
     try {
       console.log('🔐 [SIGNUP] Starting registration for:', email);
 
-      // Check if email already exists
+      // Check if user already exists in users table
       const existingUser = await db
         .select()
         .from(schema.users)
@@ -38,7 +38,7 @@ export class AuthService {
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-      // Don't create user yet - wait for OTP verification
+      // Save/Update OTP record (using onConflictDoUpdate to prevent duplicate key error 23505)
       const emailVerification = await db
         .insert(schema.emailVerifications)
         .values({
@@ -48,13 +48,27 @@ export class AuthService {
           otp_expires_at: otpExpires,
           is_verified: false,
         })
+        .onConflictDoUpdate({
+          target: schema.emailVerifications.email,
+          set: {
+            otp_code: otpCode,
+            otp_attempts: 0,
+            otp_expires_at: otpExpires,
+            is_verified: false,
+          },
+        })
         .returning();
 
       console.log(`✓ Email verification record created`);
 
-      // Send OTP email
-      await emailService.sendOTPEmail(email, otpCode);
-      console.log(`✓ OTP sent to ${email}`);
+      // Wrap email sending safely so network/SMTP errors on Render don't crash the signup flow (HTTP 500)
+      try {
+        await emailService.sendOTPEmail(email, otpCode);
+        console.log(`✓ OTP sent to ${email}`);
+      } catch (emailErr) {
+        console.error('❌ Failed to send OTP email on cloud server:', emailErr);
+        // Do NOT rethrow; allow signup initiation response to finish cleanly
+      }
 
       await this.logAuthEvent(email, null, 'signup_initiated', 'success');
 
@@ -160,7 +174,13 @@ export class AuthService {
         console.log(`✓ Retailer profile created`);
       }
 
-      await emailService.sendWelcomeEmail(email, fullName);
+      // Safely send welcome email
+      try {
+        await emailService.sendWelcomeEmail(email, fullName);
+      } catch (welcomeErr) {
+        console.error('⚠️ Failed to send welcome email:', welcomeErr);
+      }
+
       await this.logAuthEvent(email, newUser[0].id, 'signup_completed', 'success');
 
       const accessToken = this.generateJWT(newUser[0].id, email, role, '15m');
@@ -404,7 +424,12 @@ export class AuthService {
 
       console.log(`✓ Reset token generated`);
 
-      await emailService.sendPasswordResetEmail(email, resetToken, user.full_name || 'User');
+      try {
+        await emailService.sendPasswordResetEmail(email, resetToken, user.full_name || 'User');
+      } catch (emailErr) {
+        console.error('⚠️ Failed to send password reset email:', emailErr);
+      }
+
       await this.logAuthEvent(email, user.id, 'password_reset_requested', 'success');
 
       return { message: 'Password reset link sent to your email' };
@@ -585,9 +610,6 @@ export class AuthService {
 
   /**
    * STEP 10: PASSKEYS (WebAuthn) - Authenticate
-   *
-   * FIX: passkey.counter is typed as number | null in the schema.
-   * We coerce it with `?? 0` before the comparison to satisfy TypeScript (error 18047).
    */
   async authenticatePasskey(credentialId: string, newCounter: number) {
     try {
@@ -603,7 +625,7 @@ export class AuthService {
       }
 
       const passkey = passkeys[0];
-      const currentCounter = passkey.counter ?? 0; // ← FIX for TS18047
+      const currentCounter = passkey.counter ?? 0;
 
       // Check counter (prevent replay attacks)
       if (newCounter <= currentCounter) {
@@ -646,10 +668,6 @@ export class AuthService {
 
   /**
    * JWT GENERATION
-   *
-   * FIX for TS2769: jwt.sign's third argument must be SignOptions, not a plain object literal
-   * when the second arg is a string secret. Importing SignOptions and typing the options
-   * object explicitly resolves the overload resolution failure.
    */
   generateJWT(
     userId: number,
