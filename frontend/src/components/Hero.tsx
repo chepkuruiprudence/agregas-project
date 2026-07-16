@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ShoppingBag, RotateCcw } from 'lucide-react';
+import { getIcon } from '../utils/iconMap';
 
 export const Hero = () => {
   const { isAuthenticated } = useAuth();
