@@ -7,6 +7,7 @@ import { AddInventoryModal } from '../components/AddInventoryModal';
 import { OrderQueueCard } from '../components/OrderQueueCard';
 import { InventoryCard } from '../components/InventoryCard'; 
 import { StatsCard } from '../components/RetailerStatsCard';
+import { Navbar } from '../components/Navbar';
 
 interface InventoryItem {
   id: string;
@@ -69,7 +70,9 @@ export const RetailerDashboard = () => {
   const pendingOrders = orders.filter(o => o.status === 'pending').length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      <Navbar />
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
         <div className="container-custom py-6">
@@ -190,5 +193,6 @@ export const RetailerDashboard = () => {
         />
       )}
     </div>
+    </>
   );
 };
