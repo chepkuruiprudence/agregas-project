@@ -3,21 +3,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-// import { useNotifications } from '../hooks/useNotifications';
 import {
   validateEmail,
   validatePassword,
   validateFullName,
   validatePhone,
 } from '../utils/validators';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, MapPin } from 'lucide-react';
 
 export const RegisterForm = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { register, isLoading, loginWithGoogle } = useAuth();
-  // const { addNotification } = useNotifications();
   const [showPassword, setShowPassword] = useState(false);
+  const [gettingLocation, setGettingLocation] = useState(false);
 
   const role = searchParams.get('role') || 'customer';
 
@@ -125,14 +124,53 @@ export const RegisterForm = () => {
   };
 
   /**
+   * Get retailer's business location using geolocation API
+   */
+  const handleGetBusinessLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setFormData({
+          ...formData,
+          latitude: latitude.toFixed(6),
+          longitude: longitude.toFixed(6),
+        });
+        setGettingLocation(false);
+        // Clear any location errors
+        setErrors({ ...errors, location: '' });
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        let errorMessage = 'Could not get your location. Please enter it manually.';
+        
+        if (error.code === error.PERMISSION_DENIED) {
+          errorMessage =
+            'Location permission denied. Please enable location access in your browser settings.';
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          errorMessage = 'Location information is unavailable.';
+        } else if (error.code === error.TIMEOUT) {
+          errorMessage = 'Location request timed out. Please try again.';
+        }
+        
+        alert(errorMessage);
+        setGettingLocation(false);
+      }
+    );
+  };
+
+  /**
    * GOOGLE SIGN-UP
-   * Only available for customer role — retailers/brands must supply business details.
-   * Google-registered customers default to role 'customer' on the backend.
+   * Only available for customer role
    */
   const handleGoogleSignup = async () => {
     try {
       await loginWithGoogle();
-      // AuthContext handles redirect + notifications
     } catch (error: any) {
       // AuthContext already shows the notification
     }
@@ -151,7 +189,7 @@ export const RegisterForm = () => {
           <h1 className="text-3xl font-bold text-primary-900 mb-2">{getRoleTitle()}</h1>
           <p className="text-gray-600 mb-8">Create your {role} account</p>
 
-          {/* GOOGLE SIGN-UP — customers only (retailers/brands need business fields) */}
+          {/* GOOGLE SIGN-UP — customers only */}
           {role === 'customer' && (
             <>
               <button
@@ -196,7 +234,9 @@ export const RegisterForm = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Full Name */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Full Name <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 value={formData.fullName}
@@ -211,7 +251,9 @@ export const RegisterForm = () => {
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Email Address <span className="text-red-500">*</span>
+              </label>
               <input
                 type="email"
                 value={formData.email}
@@ -226,7 +268,9 @@ export const RegisterForm = () => {
 
             {/* Phone */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Phone Number <span className="text-red-500">*</span>
+              </label>
               <input
                 type="tel"
                 value={formData.phone}
@@ -241,7 +285,9 @@ export const RegisterForm = () => {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Password <span className="text-red-500">*</span>
+              </label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -267,19 +313,24 @@ export const RegisterForm = () => {
               {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
             </div>
 
-            {/* RETAILER FIELDS */}
+            {/* ========== RETAILER FIELDS ========== */}
             {role === 'retailer' && (
               <>
                 <div className="border-t pt-6 mt-6">
                   <h3 className="font-semibold text-gray-700 mb-4">Business Information</h3>
                 </div>
 
+                {/* Business Name */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Business Name</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Business Name <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.businessName}
-                    onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, businessName: e.target.value })
+                    }
                     className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                       errors.businessName ? 'border-red-500' : 'border-gray-300'
                     }`}
@@ -290,12 +341,17 @@ export const RegisterForm = () => {
                   )}
                 </div>
 
+                {/* Business License */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Business License</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Business License <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.businessLicense}
-                    onChange={(e) => setFormData({ ...formData, businessLicense: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, businessLicense: e.target.value })
+                    }
                     className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                       errors.businessLicense ? 'border-red-500' : 'border-gray-300'
                     }`}
@@ -306,39 +362,74 @@ export const RegisterForm = () => {
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Latitude</label>
-                    <input
-                      type="number"
-                      step="0.000001"
-                      value={formData.latitude}
-                      onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                        errors.location ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="-1.2864"
-                    />
+                {/* Location with Google Maps */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Business Location <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-4 mb-3">
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block">Latitude</label>
+                      <input
+                        type="text"
+                        value={formData.latitude}
+                        onChange={(e) =>
+                          setFormData({ ...formData, latitude: e.target.value })
+                        }
+                        placeholder="-1.286389"
+                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm ${
+                          errors.location ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        readOnly={gettingLocation}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block">Longitude</label>
+                      <input
+                        type="text"
+                        value={formData.longitude}
+                        onChange={(e) =>
+                          setFormData({ ...formData, longitude: e.target.value })
+                        }
+                        placeholder="36.817223"
+                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm ${
+                          errors.location ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        readOnly={gettingLocation}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Longitude</label>
-                    <input
-                      type="number"
-                      step="0.000001"
-                      value={formData.longitude}
-                      onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                        errors.location ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="36.8172"
-                    />
-                  </div>
+
+                  {/* Use My Location Button */}
+                  <button
+                    type="button"
+                    onClick={handleGetBusinessLocation}
+                    disabled={gettingLocation || isLoading}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-primary-300 text-primary-600 rounded-lg hover:bg-primary-50 transition disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium bg-primary-50 mb-2"
+                  >
+                    <MapPin size={18} />
+                    {gettingLocation ? (
+                      <>
+                        <span className="inline-block animate-spin">⌚</span>
+                        Getting location...
+                      </>
+                    ) : (
+                      '📍 Use My Current Location'
+                    )}
+                  </button>
+
+                  <p className="text-xs text-gray-500 mb-3">
+                    Enable location access to automatically fill coordinates
+                  </p>
+
+                  {errors.location && (
+                    <p className="text-red-500 text-sm">{errors.location}</p>
+                  )}
                 </div>
-                {errors.location && <p className="text-red-500 text-sm mt-1">{errors.location}</p>}
               </>
             )}
 
-            {/* BRAND FIELDS */}
+            {/* ========== BRAND FIELDS ========== */}
             {role === 'brand' && (
               <>
                 <div className="border-t pt-6 mt-6">
@@ -346,11 +437,15 @@ export const RegisterForm = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Company Name</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Company Name <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.companyName}
-                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, companyName: e.target.value })
+                    }
                     className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                       errors.companyName ? 'border-red-500' : 'border-gray-300'
                     }`}
@@ -362,10 +457,14 @@ export const RegisterForm = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Product Category</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Product Category <span className="text-red-500">*</span>
+                  </label>
                   <select
                     value={formData.productCategory}
-                    onChange={(e) => setFormData({ ...formData, productCategory: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, productCategory: e.target.value })
+                    }
                     className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                       errors.productCategory ? 'border-red-500' : 'border-gray-300'
                     }`}
@@ -381,7 +480,9 @@ export const RegisterForm = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Tax ID</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Tax ID <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.taxId}
@@ -399,7 +500,7 @@ export const RegisterForm = () => {
             {/* Submit */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || gettingLocation}
               className="w-full bg-primary-500 text-white py-3 rounded-lg font-semibold hover:bg-primary-600 transition disabled:opacity-50 disabled:cursor-not-allowed mt-6"
             >
               {isLoading ? 'Creating account...' : 'Register'}

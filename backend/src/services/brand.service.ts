@@ -1,94 +1,10 @@
-// import { drizzle } from "drizzle-orm/node-postgres";
-// import { Pool } from "pg";
-// import { eq, desc } from "drizzle-orm";
-// import * as schema from "../db/schema";
-// import { AppError } from "../middleware/errorHandler";
-
-// const pool = new Pool({
-//   connectionString: process.env.DATABASE_URL,
-// });
-
-// const db = drizzle(pool, { schema });
-
-// export class BrandService {
-//   async getBrandProducts(brand: string) {
-//     try {
-//       const products = await db
-//         .select()
-//         .from(schema.products)
-//         .where(eq(schema.products.brand, brand));
-
-//       return products;
-//     } catch (error) {
-//       throw error;
-//     }
-//   }
-
-//   async setBasePrice(productId: number, newPrice: number) {
-//     try {
-//       const updated = await db
-//         .update(schema.products)
-//         .set({ base_price: newPrice.toString() })
-//         .where(eq(schema.products.id, productId))
-//         .returning();
-
-//       if (updated.length === 0) {
-//         throw new AppError(404, "Product not found");
-//       }
-
-//       return updated[0];
-//     } catch (error) {
-//       throw error;
-//     }
-//   }
-
-//   async getBrandRetailers(brand: string) {
-//     try {
-//       const retailers = await db
-//         .select()
-//         .from(schema.retailers)
-//         .where(eq(schema.retailers.brand, brand));
-
-//       return retailers;
-//     } catch (error) {
-//       throw error;
-//     }
-//   }
-
-//   async getBrandAnalytics(brand: string) {
-//     try {
-//       const orders = await db
-//         .select()
-//         .from(schema.orders)
-//         .where(eq(schema.orders.brand, brand));
-
-//       const totalSales = orders.length;
-//       const totalRevenue = orders.reduce(
-//         (sum, order) => sum + parseFloat(order.final_price),
-//         0
-//       );
-
-//       const retailers = await this.getBrandRetailers(brand);
-
-//       return {
-//         brand,
-//         totalSales,
-//         totalRevenue,
-//         averageSaleValue: totalRevenue / totalSales,
-//         activeRetailers: retailers.length,
-//       };
-//     } catch (error) {
-//       throw error;
-//     }
-//   }
-// }
-
-// export const brandService = new BrandService();
-
 import { db } from "../db/index";
-import { eq, and, sum } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { AppError } from "../middleware/errorHandler";
+import { products, users } from "../db/schema";
+import { brands } from "../db/tables/brands.table";
+
 
 export class BrandService {
   /**
@@ -102,6 +18,51 @@ export class BrandService {
    * - Market Share: (Brand Volume / Total Platform Volume) * 100
    * - Average Rating: AVG of retailer ratings
    */
+
+  /**
+   * Public: Fetch distinct brands for order creation form dropdowns
+   */
+  async getAllBrands() {
+    const brandList = await db
+      .select({
+        id: brands.id,
+        name: brands.name,
+        logo_url: brands.logo_url,
+      })
+      .from(brands);
+
+    return brandList.map((b) => ({
+      id: b.id,
+      name: b.name,
+      logoUrl: b.logo_url,
+    }));
+  }
+
+  /**
+   * Public: Fetch active products for a specific brand name
+   */
+  async getProductsByBrand(brandName: string) {
+    const result = await db
+      .select({
+        id: products.id,
+        brand: brands.name,
+        cylinder_size: products.cylinder_size,
+        base_price: products.base_price,
+        description: products.description,
+        is_active: products.is_active,
+      })
+      .from(products)
+      .innerJoin(brands, eq(products.brand, brands.name))
+      .where(
+        and(
+          sql`LOWER(${brands.name}) = LOWER(${brandName})`,
+          eq(products.is_active, true)
+        )
+      );
+
+    return result;
+  }
+
   async getBrandStats(userId: number) {
     try {
       // Get brand ID
