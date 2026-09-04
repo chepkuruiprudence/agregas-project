@@ -11,10 +11,10 @@
     "clean": "rimraf build dist *.tsbuildinfo",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src",
+    "db:push": "drizzle-kit push --config=src/drizzle.config.ts",
     "db:generate": "drizzle-kit generate --config=src/drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=src/drizzle.config.ts",
-    "db:studio": "drizzle-kit studio --config=src/drizzle.config.ts",
-    "db:push": "drizzle-kit push --config=src/drizzle.config.ts"
+    "db:studio": "drizzle-kit studio --config=src/drizzle.config.ts"
   },
   "keywords": [],
   "author": "",

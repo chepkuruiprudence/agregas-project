@@ -1,0 +1,20 @@
+CREATE TABLE "brands" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" varchar(255) NOT NULL,
+	"description" text,
+	"logo_url" varchar(500),
+	"website" varchar(500),
+	"email" varchar(255),
+	"phone" varchar(20),
+	"country" varchar(100),
+	"registration_number" varchar(100),
+	"tax_id" varchar(100),
+	"is_verified" boolean DEFAULT false,
+	"total_reviews" numeric(10, 0) DEFAULT '0',
+	"average_rating" numeric(3, 1) DEFAULT '0.0',
+	"created_at" timestamp DEFAULT now(),
+	"updated_at" timestamp DEFAULT now(),
+	CONSTRAINT "brands_name_unique" UNIQUE("name"),
+	CONSTRAINT "brands_registration_number_unique" UNIQUE("registration_number"),
+	CONSTRAINT "brands_tax_id_unique" UNIQUE("tax_id")
+);

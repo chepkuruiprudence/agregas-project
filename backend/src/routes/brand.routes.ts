@@ -11,6 +11,8 @@ import {
   getBrandAnalytics,
   updatePricing,
   getRetailerPerformance,
+  getAllBrands,
+  getProductsByBrand,  
 } from "../controllers/brand.controller";
 
 const router = express.Router();
@@ -33,6 +35,8 @@ router.get("/products", getBrandProducts);
 router.post("/products", createProduct);
 router.put("/products/:id", updateProduct);
 router.delete("/products/:id", deleteProduct);
+router.get("/all-brands", getAllBrands);
+router.get("/products/by-brand/:brandName", getProductsByBrand);
 
 /**
  * Retailer Management
