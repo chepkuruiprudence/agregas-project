@@ -31,7 +31,7 @@ export async function authenticateToken(
 
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET || "secret"
+      process.env.JWT_SECRET || "jwt123456789"
     ) as JwtPayload;
 
     console.log('✓ Token verified for user:', {
@@ -44,12 +44,12 @@ export async function authenticateToken(
     next();
   } catch (error: any) {
     // Cleaner error reporting in terminal instead of dumping complete trace arrays for standard failures
-    console.error('❌ Token verification failed:', error.message || error);
+    console.error('Token verification failed:', error.message || error);
     
-    return res.status(403).json({
+    return res.status(401).json({
       success: false,
-      statusCode: 403,
-      message: error.name === "JsonWebTokenError" ? "Malformed token signature" : "Invalid or expired token",
+      statusCode: 401,
+      message: error.name === "TokenExpiredError" ? "Expired token" : "Invalid or expired token",
       timestamp: new Date().toISOString(),
     });
   }
