@@ -18,6 +18,12 @@ import {
 const router = express.Router();
 
 /**
+ * Public Routes (accessible to all authenticated users or customers)
+ */
+router.get("/all-brands", getAllBrands);
+router.get("/products/by-brand/:brandName", getProductsByBrand);
+
+/**
  * All brand routes require authentication and brandrole
  */
 router.use(authenticateToken);
@@ -35,8 +41,6 @@ router.get("/products", getBrandProducts);
 router.post("/products", createProduct);
 router.put("/products/:id", updateProduct);
 router.delete("/products/:id", deleteProduct);
-router.get("/all-brands", getAllBrands);
-router.get("/products/by-brand/:brandName", getProductsByBrand);
 
 /**
  * Retailer Management

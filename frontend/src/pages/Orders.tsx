@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
-import { useAuth } from '../hooks/useAuth';
 import { useApi } from '../hooks/useApi';
 import { useNotifications } from '../hooks/useNotifications';
 import { Plus } from 'lucide-react';
@@ -27,12 +25,10 @@ interface Order {
 }
 
 export const Orders = () => {
-  const { user } = useAuth();
   const { request, loading } = useApi();
   const { addNotification } = useNotifications();
-  const navigate = useNavigate();
 
-  // State: Orders
+  // State: Orders List
   const [orders, setOrders] = useState<Order[]>([]);
 
   // State: Create Order View Controller
@@ -63,7 +59,6 @@ export const Orders = () => {
   const fetchOrders = async () => {
     try {
       const response = await request('get', '/orders/customer');
-      // Fix: response is already the body context returned by useApi hook
       if (response?.data) {
         setOrders(response.data);
         console.log('✓ Orders loaded:', response.data);
@@ -75,90 +70,23 @@ export const Orders = () => {
   };
 
   /**
-   * Validate form before submission
+   * Create new order handler
    */
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.brand.trim()) {
-      newErrors.brand = 'Brand is required';
-    }
-    if (!formData.cylinderSize.trim()) {
-      newErrors.cylinderSize = 'Cylinder size is required';
-    }
-    if (formData.quantity < 1) {
-      newErrors.quantity = 'Quantity must be at least 1';
-    }
-    if (!formData.latitude.trim()) {
-      newErrors.latitude = 'Latitude is required';
-    }
-    if (!formData.longitude.trim()) {
-      newErrors.longitude = 'Longitude is required';
-    }
-    if (!formData.deliveryAddress.trim()) {
-      newErrors.deliveryAddress = 'Delivery address is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  /**
-   * Create new order - Then navigate to payment with order data
-   */
-  const handleCreateOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (creating) return;
-    if (!validateForm()) return;
-
-    setCreating(true);
+  const handleCreateOrder = async (orderData: any) => {
     try {
-      console.log('📤 Creating order with data:', formData);
-      
-      // ✅ response here holds the JSON sent by your controller: { success: true, data: order, ... }
-      const response = await request('post', '/orders/create', formData);
-      console.log('✅ Extracted JSON payload:', response);
+      setCreating(true);
+      console.log('📡 Sending order payload:', orderData);
 
-      const createdOrder = response?.data;
+      const response = await request('post', '/orders/create', orderData);
+      console.log('✓ Order created successfully:', response);
 
-      if (createdOrder) {
-        console.log('🎯 Found Order Object:', createdOrder);
+      addNotification('Order created successfully!', 'success');
 
-        // Add to orders list array
-        setOrders([createdOrder, ...orders]);
-
-        // Clear out form inputs right away
-        setFormData({
-          purchaseType: 'refill',
-          brand: '',
-          cylinderSize: '',
-          quantity: 1,
-          latitude: '',
-          longitude: '',
-          deliveryAddress: '',
-          paymentMethod: 'mpesa',
-        });
-        setErrors({});
-
-        addNotification('Order created! Proceed to payment...', 'success');
-
-        // Drop the standalone conditional form view state layout wrapper
-        setShowCreateForm(false);
-
-        // Run navigation securely on next layout rendering pass
-        setTimeout(() => {
-          navigate('/payment', {
-            state: { order: createdOrder },
-            replace: true
-          });
-        }, 20);
-      } else {
-        console.error('❌ Could not parse order object from data property wrapper.', response);
-        addNotification('Failed to parse order return formatting.', 'error');
-      }
+      // Close view & refresh list
+      setShowCreateForm(false);
+      await fetchOrders();
     } catch (error: any) {
-      console.error('Error creating order:', error);
+      console.error('❌ Failed to create order:', error);
       const errorMsg = error.response?.data?.message || 'Failed to create order';
       addNotification(errorMsg, 'error');
     } finally {
@@ -173,11 +101,10 @@ export const Orders = () => {
     if (!window.confirm('Are you sure you want to cancel this order?')) return;
 
     try {
-      // ✅ FIX: Cleaned up the copy-paste order creation duplicate code blocks!
       console.log(`📤 Sending cancellation request for order ID: ${orderId}`);
       await request('delete', `/orders/${orderId}`);
-      
-      setOrders(orders.filter((o) => o.id !== orderId));
+
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
       addNotification('Order cancelled successfully', 'success');
     } catch (error: any) {
       console.error('Error cancelling order:', error);
@@ -186,14 +113,14 @@ export const Orders = () => {
     }
   };
 
-  // Standalone Layout Component configuration
+  // Full-screen Form View
   if (showCreateForm) {
     return (
       <div className="flex flex-col min-h-screen bg-gray-50">
         <Navbar />
         <main className="flex-grow flex items-center justify-center p-4 sm:p-8 py-12">
-          <CreateOrderModal 
-            isOpen={true} 
+          <CreateOrderModal
+            isOpen={true}
             onClose={() => {
               setErrors({});
               setShowCreateForm(false);
@@ -210,6 +137,7 @@ export const Orders = () => {
     );
   }
 
+  // Orders List View
   return (
     <>
       <Navbar />

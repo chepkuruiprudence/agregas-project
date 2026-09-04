@@ -15,8 +15,13 @@ import brandRoutes from "./brand.routes";
 import adminRoutes from "./admin.routes";
 import paymentRoutes from "./payment.routes";
 import inventoryRoutes from "./inventory.routes";
+import {getAllBrands} from "../controllers/brand.controller";
+import publicRoutes from "./public.routes";
 
 export function registerRoutes(app: Application) {
+
+  app.get('/api/brands', getAllBrands); // Public endpoint for fetching all brands
+
   // Auth routes (public)
   app.use("/api/auth", authRoutes);
 
@@ -37,6 +42,9 @@ export function registerRoutes(app: Application) {
   app.use("/api/admin", adminRoutes);
   app.use("/api/payments", paymentRoutes);
   app.use('/api/retailers', inventoryRoutes);
+
+  // Public routes (no auth)
+  app.use('/api', publicRoutes);
 
   // Error handling middleware (must be last)
   app.use(errorHandler);

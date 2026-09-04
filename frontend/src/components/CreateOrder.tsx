@@ -69,50 +69,52 @@ export const CreateOrderModal = ({
   }, []);
 
   const fetchBrands = async () => {
-    try {
-      setLoadingBrands(true);
-      console.log('📡 Fetching brands from backend...');
-      
-      const response = await request('get', '/api/brands');
-      console.log('✓ Brands response:', response.data);
+  try {
+    setLoadingBrands(true);
+    console.log('📡 Fetching brands from backend...');
+    
+    const response = await request('get', '/brands');
+    console.log('✓ Brands response:', response);
 
-      if (response.data?.data && Array.isArray(response.data.data)) {
-        // Check if brands array is empty
-        if (response.data.data.length === 0) {
-          console.warn('⚠️ No brands returned from backend');
-          setBrands([]);
-          setErrors((prev) => ({
-            ...prev,
-            brands: 'No brands available. Please contact support.',
-          }));
-        } else {
-          console.log(`✓ Loaded ${response.data.data.length} brands`);
-          setBrands(response.data.data);
-          setErrors((prev) => {
-            const newErrors = { ...prev };
-            delete newErrors.brands;
-            return newErrors;
-          });
-        }
-      } else {
-        console.error('❌ Invalid response format:', response.data);
+    // If your helper returns the raw data payload directly:
+    const brandList = Array.isArray(response) ? response : response?.data;
+
+    if (Array.isArray(brandList)) {
+      if (brandList.length === 0) {
+        console.warn('⚠️ No brands returned from backend');
         setBrands([]);
         setErrors((prev) => ({
           ...prev,
-          brands: 'Failed to load brands. Invalid response format.',
+          brands: 'No brands available. Please contact support.',
         }));
+      } else {
+        console.log(`✓ Loaded ${brandList.length} brands`);
+        setBrands(brandList);
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors.brands;
+          return newErrors;
+        });
       }
-    } catch (error) {
-      console.error('❌ Error fetching brands:', error);
+    } else {
+      console.error('❌ Invalid response format:', response);
       setBrands([]);
       setErrors((prev) => ({
         ...prev,
-        brands: 'Failed to load brands. Please check your connection.',
+        brands: 'Failed to load brands. Invalid response format.',
       }));
-    } finally {
-      setLoadingBrands(false);
     }
-  };
+  } catch (error) {
+    console.error('❌ Error fetching brands:', error);
+    setBrands([]);
+    setErrors((prev) => ({
+      ...prev,
+      brands: 'Failed to load brands. Please check your connection.',
+    }));
+  } finally {
+    setLoadingBrands(false);
+  }
+};
 
   // ========== FETCH PRODUCTS BY BRAND ==========
   useEffect(() => {
@@ -127,37 +129,51 @@ export const CreateOrderModal = ({
   }, [formData.brand]);
 
   const fetchProductsForBrand = async (brandName: string) => {
-    try {
-      setLoadingProducts(true);
-      console.log(`📡 Fetching products for brand: ${brandName}`);
-      
-      const response = await request('get', `/api/products/by-brand/${brandName}`);
-      console.log('✓ Products response:', response.data);
+  try {
+    setLoadingProducts(true);
+    console.log(`📡 Fetching products for brand: ${brandName}`);
+    
+    const response = await request('get', `/brand/products/by-brand/${brandName}`);
+    console.log('✓ Products response:', response);
 
-      if (response.data?.data && Array.isArray(response.data.data)) {
-        if (response.data.data.length === 0) {
-          console.warn(`⚠️ No products found for brand: ${brandName}`);
-          setProducts([]);
-          setCylinderSizes([]);
-        } else {
-          setProducts(response.data.data);
+    // Unify payload extraction: handle direct array or nested { data: [...] } structure
+    const productsList = Array.isArray(response)
+      ? response
+      : response?.data?.data || response?.data;
 
-          // Extract unique cylinder sizes, sorted by number
-          const sizes = [...new Set(response.data.data.map((p: Product) => p.cylinder_size))].sort(
-            (a, b) => parseInt(a as string) - parseInt(b as string)
-          );
-          setCylinderSizes(sizes as string[]);
-          console.log(`✓ Found ${sizes.length} cylinder sizes:`, sizes);
-        }
+    if (Array.isArray(productsList)) {
+      if (productsList.length === 0) {
+        console.warn(`⚠️ No products found for brand: ${brandName}`);
+        setProducts([]);
+        setCylinderSizes([]);
+      } else {
+        setProducts(productsList);
+
+        // Extract unique cylinder sizes safely
+        const sizes = [
+          ...new Set(
+            productsList
+              .map((p: Product) => p.cylinder_size)
+              .filter(Boolean)
+          ),
+        ].sort((a, b) => parseInt(a as string) - parseInt(b as string));
+
+        setCylinderSizes(sizes as string[]);
+        console.log(`✓ Found ${sizes.length} cylinder sizes:`, sizes);
       }
-    } catch (error) {
-      console.error('❌ Error fetching products:', error);
+    } else {
+      console.error('❌ Unexpected products response format:', response);
       setProducts([]);
       setCylinderSizes([]);
-    } finally {
-      setLoadingProducts(false);
     }
-  };
+  } catch (error) {
+    console.error('❌ Error fetching products:', error);
+    setProducts([]);
+    setCylinderSizes([]);
+  } finally {
+    setLoadingProducts(false);
+  }
+};
 
   // ========== UPDATE MAX QUANTITY ==========
   useEffect(() => {
@@ -328,38 +344,45 @@ Try again or enter coordinates manually below.`;
   };
 
   // ========== SUBMIT HANDLER ==========
-  const handleSubmit = async (e: React.FormEvent) => {
+  // ========== SUBMIT HANDLER ==========
+const handleSubmit = async (e?: React.FormEvent) => {
+  // Safe guard preventDefault in case handleSubmit is invoked without an event object
+  if (e && typeof e.preventDefault === 'function') {
     e.preventDefault();
+  }
 
-    if (!validateForm()) return;
+  if (!validateForm()) return;
 
-    try {
-      const orderData = {
-        brand: formData.brand,
-        cylinder_size: formData.cylinderSize,
-        quantity: formData.quantity,
-        latitude: parseFloat(formData.latitude),
-        longitude: parseFloat(formData.longitude),
-        delivery_address: formData.deliveryAddress,
-        payment_method: formData.paymentMethod,
-      };
+  try {
+    const orderData = {
+      purchaseType: 'refill', // Assuming default purchase type is 'refill'
+      brand: formData.brand,
+      cylinderSize: formData.cylinderSize,
+      quantity: formData.quantity,
+      latitude: parseFloat(formData.latitude),
+      longitude: parseFloat(formData.longitude),
+      deliveryAddress: formData.deliveryAddress,
+      paymentMethod: formData.paymentMethod,
+    };
 
-      await onSubmit(orderData);
+    // Pass ONLY orderData to parent onSubmit handler
+    await onSubmit(orderData);
 
-      setFormData({
-        brand: '',
-        cylinderSize: '',
-        quantity: 1,
-        latitude: '',
-        longitude: '',
-        deliveryAddress: '',
-        paymentMethod: 'mpesa',
-      });
-      setErrors({});
-    } catch (error) {
-      console.error('❌ Error submitting order:', error);
-    }
-  };
+    // Reset form after successful submission
+    setFormData({
+      brand: '',
+      cylinderSize: '',
+      quantity: 1,
+      latitude: '',
+      longitude: '',
+      deliveryAddress: '',
+      paymentMethod: 'mpesa',
+    });
+    setErrors({});
+  } catch (error) {
+    console.error('❌ Error submitting order:', error);
+  }
+};
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -625,18 +648,18 @@ Try again or enter coordinates manually below.`;
 
           {/* Submit Button */}
           <button
-            type="submit"
-            disabled={
-              isLoading ||
-              !formData.brand ||
-              !formData.cylinderSize ||
-              quantityWarning !== '' ||
-              Object.keys(errors).length > 0
-            }
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed mt-6"
-          >
-            {isLoading ? '⏳ Placing Order...' : '✅ Place Order'}
-          </button>
+    type="submit"
+    disabled={
+      isLoading ||
+      !formData.brand ||
+      !formData.cylinderSize ||
+      quantityWarning !== '' ||
+      Object.keys(errors).length > 0
+    }
+    className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+  >
+    {isLoading ? '⏳ Placing Order...' : '✅ Place Order'}
+  </button>
         </form>
       </div>
     </div>
