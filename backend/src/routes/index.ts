@@ -1,4 +1,4 @@
-import express, { Application } from "express";
+import { Application } from "express";
 import { errorHandler } from "../middleware/errorHandler";
 import authRoutes from "./auth.routes";
 import userRoutes from "./user.routes";

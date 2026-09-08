@@ -3,7 +3,7 @@ import React, { createContext, useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../hooks/useNotifications';
 import { authService } from '../services/auth';
-import type { User, LoginRequest, SignupRequest, AuthContextType } from './AuthContext.types.ts';
+import type { User, LoginRequest, AuthContextType } from './AuthContext.types.ts';
 
 export { type AuthContextType, type LoginRequest, type SignupRequest } from './AuthContext.types.ts';
 

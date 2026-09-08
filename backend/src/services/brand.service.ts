@@ -2,7 +2,7 @@ import { db } from "../db/index";
 import { eq, and, sql } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { AppError } from "../middleware/errorHandler";
-import { products, users } from "../db/schema";
+import { products } from "../db/schema";
 import { brands } from "../db/tables/brands.table";
 
 

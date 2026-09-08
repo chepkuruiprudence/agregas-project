@@ -1,6 +1,6 @@
 // frontend/src/components/OrderQueueCard.tsx
 
-import { Truck, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Truck, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface Order {
   id: string;

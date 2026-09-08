@@ -1,6 +1,6 @@
 import { relations } from "drizzle-orm";
 import { orders } from "../tables";
-import { users, retailers, products, deliveryTracking } from "../tables";
+import { users, retailers, deliveryTracking } from "../tables";
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
   customer: one(users, {
