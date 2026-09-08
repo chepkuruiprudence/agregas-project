@@ -42,18 +42,29 @@ export const RetailerDashboard = () => {
     { id: 'ORD-003', customerName: 'Peter Johnson', quantity: 3, price: 2550, status: 'completed', createdAt: '2024-01-13' },
   ]);
 
-  // Handle Add Inventory
-  const handleAddInventory = (item: Omit<InventoryItem, 'id'>) => {
-    const newItem: InventoryItem = {
-      ...item,
-      id: Date.now().toString(),
-    };
-    setInventory([...inventory, newItem]);
-    setShowAddInventory(false);
-    
-    // Optional: Show success message
-    console.log('✓ Inventory added:', newItem);
+  // Inside RetailerDashboard.tsx
+
+const handleAddInventory = (item: {
+  brand: string;
+  cylinderSize: string;
+  quantity: number;
+  pricePerUnit: number;
+}) => {
+  const newItem: InventoryItem = {
+    id: Date.now().toString(),
+    // Construct the title from brand and size
+    productName: `${item.brand} ${item.cylinderSize} Cylinder`.trim(),
+    quantity: item.quantity,
+    // Map pricePerUnit to price to resolve NaN
+    price: item.pricePerUnit,
+    unit: 'Cylinder',
   };
+
+  setInventory((prev) => [...prev, newItem]);
+  setShowAddInventory(false);
+
+  console.log('✓ Inventory added:', newItem);
+};
 
   // Handle Update Order Status
   const handleUpdateOrderStatus = (orderId: string, status: 'pending' | 'in-progress' | 'completed') => {

@@ -3,38 +3,145 @@ import { Request, Response, NextFunction } from "express";
 import { retailerService } from "../services/retailer.service";
 import { AppError } from "../middleware/errorHandler";
 
-// ─── Dashboard endpoints (called by RetailerDashboard.tsx) ──────────────────
+// ─── Geo & Discovery Endpoints ─────────────────────────────────────────────
+
+/** GET /api/retailers/nearest */
+export async function findNearest(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { lat, lng } = req.query;
+
+    if (!lat || !lng) {
+      throw new AppError(400, "Latitude and longitude query parameters are required");
+    }
+
+    const latitude = parseFloat(lat as string);
+    const longitude = parseFloat(lng as string);
+
+    if (isNaN(latitude) || isNaN(longitude)) {
+      throw new AppError(400, "Invalid latitude or longitude format");
+    }
+
+    const data = await retailerService.findNearestRetailerWithStock(latitude, longitude);
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        statusCode: 404,
+        message: "No active retailers found with available stock nearby",
+        data: null,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "Nearest retailer found successfully",
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ─── Dashboard Endpoints (called by RetailerDashboard.tsx) ──────────────────
 
 /** GET /api/retailer/stats */
 export async function getStats(req: Request, res: Response, next: NextFunction) {
   try {
     const data = await retailerService.getRetailerStats(req.user!.userId);
-    res.status(200).json({ success: true, statusCode: 200, message: "Stats retrieved", data, timestamp: new Date().toISOString() });
-  } catch (error) { next(error); }
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "Stats retrieved",
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
 /** GET /api/retailer/orders */
 export async function getOrders(req: Request, res: Response, next: NextFunction) {
   try {
     const data = await retailerService.getRetailerOrders(req.user!.userId);
-    res.status(200).json({ success: true, statusCode: 200, message: "Orders retrieved", data, timestamp: new Date().toISOString() });
-  } catch (error) { next(error); }
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "Orders retrieved",
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
 /** GET /api/retailer/inventory */
 export async function getInventory(req: Request, res: Response, next: NextFunction) {
   try {
-    const data = await retailerService.getRetailerInventory(req.user!.userId);
-    res.status(200).json({ success: true, statusCode: 200, message: "Inventory retrieved", data, timestamp: new Date().toISOString() });
-  } catch (error) { next(error); }
+    const data = await retailerService.getRetailerInventory(req.user!.userId, true);
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "Inventory retrieved",
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** POST /api/retailer/inventory */
+export async function addInventory(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { brand, cylinderSize, quantity, pricePerUnit } = req.body;
+
+    if (!brand || !cylinderSize || quantity === undefined || pricePerUnit === undefined) {
+      throw new AppError(400, "brand, cylinderSize, quantity, and pricePerUnit are required");
+    }
+
+    if (quantity < 0 || pricePerUnit < 0) {
+      throw new AppError(400, "Quantity and price must be non-negative values");
+    }
+
+    const data = await retailerService.addOrUpdateInventory(
+      req.user!.userId,
+      brand,
+      cylinderSize,
+      parseInt(quantity),
+      parseFloat(pricePerUnit)
+    );
+
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "Inventory added/updated successfully",
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
 /** GET /api/retailer/mpesa-settings */
 export async function getMPesaSettings(req: Request, res: Response, next: NextFunction) {
   try {
     const data = await retailerService.getMPesaSettings(req.user!.userId);
-    res.status(200).json({ success: true, statusCode: 200, message: "M-Pesa settings retrieved", data, timestamp: new Date().toISOString() });
-  } catch (error) { next(error); }
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "M-Pesa settings retrieved",
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
 /** PUT /api/retailer/mpesa-settings */
@@ -43,18 +150,38 @@ export async function saveMPesaSettings(req: Request, res: Response, next: NextF
     const { phone } = req.body as { phone: string };
     if (!phone) throw new AppError(400, "Phone number is required");
     const data = await retailerService.updateMPesaSettings(req.user!.userId, phone);
-    res.status(200).json({ success: true, statusCode: 200, message: "M-Pesa settings saved", data, timestamp: new Date().toISOString() });
-  } catch (error) { next(error); }
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "M-Pesa settings saved",
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
-// ─── Parameterised endpoints ─────────────────────────────────────────────────
+// ─── Parameterised Endpoints ─────────────────────────────────────────────────
 
 /** GET /api/retailer/inventory/:retailerId */
 export async function getInventoryById(req: Request, res: Response, next: NextFunction) {
   try {
-    const data = await retailerService.getRetailerInventory(req.user!.userId);
-    res.status(200).json({ success: true, statusCode: 200, message: "Inventory retrieved", data, timestamp: new Date().toISOString() });
-  } catch (error) { next(error); }
+    const { retailerId } = req.params;
+    const targetId = retailerId ? parseInt(retailerId as string) : req.user!.userId;
+    const isUserId = !retailerId;
+
+    const data = await retailerService.getRetailerInventory(targetId, isUserId);
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "Inventory retrieved",
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
 /** PUT /api/retailer/inventory/:retailerId */
@@ -63,8 +190,16 @@ export async function updateInventory(req: Request, res: Response, next: NextFun
     const { newQuantity, itemId = 1 } = req.body;
     if (newQuantity === undefined) throw new AppError(400, "newQuantity is required");
     const data = await retailerService.updateInventoryItem(req.user!.userId, itemId, newQuantity);
-    res.status(200).json({ success: true, statusCode: 200, message: "Inventory updated", data, timestamp: new Date().toISOString() });
-  } catch (error) { next(error); }
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "Inventory updated",
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
 /** GET /api/retailer/orders/pending/:retailerId */
@@ -72,8 +207,16 @@ export async function getPendingOrders(req: Request, res: Response, next: NextFu
   try {
     const all = await retailerService.getRetailerOrders(req.user!.userId, 50);
     const data = all.filter((o: any) => o.status === "pending");
-    res.status(200).json({ success: true, statusCode: 200, message: "Pending orders retrieved", data, timestamp: new Date().toISOString() });
-  } catch (error) { next(error); }
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "Pending orders retrieved",
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
 /** PUT /api/retailer/orders/:retailerId/:orderId/accept */
@@ -82,8 +225,16 @@ export async function acceptOrder(req: Request, res: Response, next: NextFunctio
     const { orderId } = req.params;
     if (!orderId) throw new AppError(400, "Order ID is required");
     const data = await retailerService.acceptOrder(req.user!.userId, parseInt(orderId as string));
-    res.status(200).json({ success: true, statusCode: 200, message: "Order accepted", data, timestamp: new Date().toISOString() });
-  } catch (error) { next(error); }
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "Order accepted",
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
 /** PUT /api/retailer/orders/:retailerId/:orderId/reject */
@@ -91,16 +242,32 @@ export async function rejectOrder(req: Request, res: Response, next: NextFunctio
   try {
     const { orderId } = req.params;
     if (!orderId) throw new AppError(400, "Order ID is required");
-    const data = await retailerService.rejectOrder(req.user!.userId, parseInt(orderId as string ));
-    res.status(200).json({ success: true, statusCode: 200, message: "Order rejected", data, timestamp: new Date().toISOString() });
-  } catch (error) { next(error); }
+    const data = await retailerService.rejectOrder(req.user!.userId, parseInt( orderId as string));
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "Order rejected",
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
 /** GET /api/retailer/analytics/:retailerId */
 export async function getAnalytics(req: Request, res: Response, next: NextFunction) {
   try {
-    const period = (req.query.period as 'daily' | 'weekly' | 'monthly') || 'monthly';
+    const period = (req.query.period as "daily" | "weekly" | "monthly") || "monthly";
     const data = await retailerService.getPerformanceMetrics(req.user!.userId, period);
-    res.status(200).json({ success: true, statusCode: 200, message: "Analytics retrieved", data, timestamp: new Date().toISOString() });
-  } catch (error) { next(error); }
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "Analytics retrieved",
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
 }

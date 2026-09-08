@@ -11,10 +11,6 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     fields: [orders.retailer_id],
     references: [retailers.id],
   }),
-  product: one(products, {
-    fields: [orders.product_id],
-    references: [products.id],
-  }),
   deliveryTracking: one(deliveryTracking, {
     fields: [orders.id],
     references: [deliveryTracking.order_id],

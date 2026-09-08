@@ -13,6 +13,7 @@ interface Order {
   id: number;
   brand: string;
   cylinderSize: string;
+  purchaseType: 'refill' | 'outright';
   quantity: number;
   finalPrice: string;
   status: string;

@@ -1,6 +1,7 @@
+// backend/src/services/retailers.service.ts
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, gt, desc, sql } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { AppError } from "../middleware/errorHandler";
 
@@ -12,26 +13,114 @@ const db = drizzle(pool, { schema });
 
 export class RetailerService {
   /**
+   * Helper: Resolve retailer by user_id
+   */
+  private async getRetailerByUserId(userId: number) {
+    const retailer = await db
+      .select()
+      .from(schema.retailers)
+      .where(eq(schema.retailers.user_id, userId));
+
+    if (retailer.length === 0) {
+      throw new AppError(403, "User is not a retailer");
+    }
+
+    return retailer[0];
+  }
+
+  /**
+   * Helper: Group inventory items by brand
+   * Format: [{ brand: "SafeGas", sizes: [{ size: "6kg", quantity: 50, price: 850 }] }]
+   */
+  groupInventoryByBrand(inventory: any[]): any[] {
+    const grouped: Record<string, any> = {};
+
+    inventory.forEach((item) => {
+      if (!grouped[item.brand]) {
+        grouped[item.brand] = {
+          brand: item.brand,
+          sizes: [],
+        };
+      }
+
+      grouped[item.brand].sizes.push({
+        size: item.cylinder_size || item.cylinderSize,
+        quantity: item.quantity_available ?? item.quantity,
+        price: item.price_per_unit || item.price,
+      });
+    });
+
+    return Object.values(grouped);
+  }
+
+  /**
+   * Find nearest active retailer with available stock using spatial distance
+   */
+  async findNearestRetailerWithStock(latitude: number, longitude: number) {
+    try {
+      console.log(`📍 Finding nearest retailer to (${latitude}, ${longitude})`);
+
+      const nearestRetailer = await db.query.retailers.findFirst({
+        where: and(
+          eq(schema.retailers.is_active, true),
+          sql`EXISTS (
+            SELECT 1 FROM retail_inventory 
+            WHERE retailer_id = retailers.id 
+            AND quantity_available > 0
+          )`
+        ),
+        orderBy: (retailers, { asc }) => [
+          asc(
+            sql`(
+              (${latitude} - CAST(retailers.latitude AS FLOAT)) * 
+              (${latitude} - CAST(retailers.latitude AS FLOAT)) +
+              (${longitude} - CAST(retailers.longitude AS FLOAT)) *
+              (${longitude} - CAST(retailers.longitude AS FLOAT))
+            )`
+          ),
+        ],
+      });
+
+      if (!nearestRetailer) {
+        return null;
+      }
+
+      console.log(`✓ Found retailer: ${nearestRetailer.business_name}`);
+
+      const inventory = await db.query.retailInventory.findMany({
+        where: and(
+          eq(schema.retailInventory.retailer_id, nearestRetailer.id),
+          gt(schema.retailInventory.quantity_available, 0)
+        ),
+      });
+
+      const groupedByBrand = this.groupInventoryByBrand(inventory);
+
+      return {
+        retailer: {
+          id: nearestRetailer.id,
+          business_name: nearestRetailer.business_name,
+          latitude: nearestRetailer.latitude,
+          longitude: nearestRetailer.longitude,
+          address: nearestRetailer.address,
+          phone: nearestRetailer.phone,
+          rating: nearestRetailer.rating,
+        },
+        inventory: groupedByBrand,
+      };
+    } catch (error) {
+      console.error('❌ Error finding nearest retailer:', error);
+      throw error;
+    }
+  }
+
+  /**
    * CALCULATION: Get retailer dashboard statistics
-   * Calculates:
-   * - Active Orders: COUNT orders with status in (pending, confirmed, processing, in_delivery)
-   * - Stock Level: SUM of inventory quantities
-   * - Today's Sales: SUM of finalPrice for orders created today
-   * - Rating: AVG rating from reviews
    */
   async getRetailerStats(userId: number) {
     try {
-      // Get retailer
-      const retailer = await db
-        .select()
-        .from(schema.retailers)
-        .where(eq(schema.retailers.user_id, userId));
-
-      if (retailer.length === 0) {
-        throw new AppError(403, "User is not a retailer");
-      }
-
-      const retailerId = retailer[0].id;
+      const retailer = await this.getRetailerByUserId(userId);
+      const retailerId = retailer.id;
 
       // 1. Active Orders
       const activeOrderStatuses = ['pending', 'confirmed', 'processing', 'in_delivery'];
@@ -44,8 +133,15 @@ export class RetailerService {
         activeOrderStatuses.includes(o.status)
       ).length;
 
-      // 2. Stock Level
-      const stockLevel = retailer[0].stock_quantity || 0;
+      // 2. Stock Level (Aggregated sum from retail_inventory)
+      const stockResult = await db
+        .select({
+          totalStock: sql<number>`COALESCE(SUM(${schema.retailInventory.quantity_available}), 0)`
+        })
+        .from(schema.retailInventory)
+        .where(eq(schema.retailInventory.retailer_id, retailerId));
+
+      const stockLevel = Number(stockResult[0]?.totalStock || 0);
 
       // 3. Today's Sales
       const today = new Date();
@@ -62,7 +158,7 @@ export class RetailerService {
       }, 0);
 
       // 4. Rating
-      const rating = parseFloat(retailer[0].rating || '5.0');
+      const rating = parseFloat(retailer.rating || '5.0');
 
       console.log('✓ Retailer stats calculated:', {
         activeOrders,
@@ -88,19 +184,12 @@ export class RetailerService {
    */
   async getRetailerOrders(userId: number, limit = 10) {
     try {
-      const retailer = await db
-        .select()
-        .from(schema.retailers)
-        .where(eq(schema.retailers.user_id, userId));
-
-      if (retailer.length === 0) {
-        throw new AppError(403, "User is not a retailer");
-      }
+      const retailer = await this.getRetailerByUserId(userId);
 
       const orders = await db
         .select()
         .from(schema.orders)
-        .where(eq(schema.orders.retailer_id, retailer[0].id))
+        .where(eq(schema.orders.retailer_id, retailer.id))
         .orderBy(desc(schema.orders.created_at))
         .limit(limit);
 
@@ -113,48 +202,161 @@ export class RetailerService {
   }
 
   /**
-   * Get inventory for this retailer
+   * Get inventory for a retailer (Supports lookup by retailerId directly or via userId)
    */
-  async getRetailerInventory(userId: number) {
+  async getRetailerInventory(identifier: number, isUserId = true) {
     try {
-      const retailer = await db
-        .select()
-        .from(schema.retailers)
-        .where(eq(schema.retailers.user_id, userId));
-
-      if (retailer.length === 0) {
-        throw new AppError(403, "User is not a retailer");
+      let retailerId = identifier;
+      if (isUserId) {
+        const retailer = await this.getRetailerByUserId(identifier);
+        retailerId = retailer.id;
       }
 
-      // Return inventory items
-      const inventory = [
-        {
-          id: 1,
-          brand: retailer[0].brand || 'GasCity',
-          cylinderSize: '13kg',
-          quantity: retailer[0].stock_quantity || 100,
-          threshold: 20,
-        },
-        {
-          id: 2,
-          brand: retailer[0].brand || 'GasCity',
-          cylinderSize: '6kg',
-          quantity: 45,
-          threshold: 15,
-        },
-        {
-          id: 3,
-          brand: retailer[0].brand || 'GasCity',
-          cylinderSize: '50kg',
-          quantity: 8,
-          threshold: 5,
-        },
-      ];
+      const inventory = await db.query.retailInventory.findMany({
+        where: eq(schema.retailInventory.retailer_id, retailerId),
+        orderBy: (ri, { asc }) => [asc(ri.brand), asc(ri.cylinder_size)],
+      });
 
-      console.log('✓ Inventory retrieved:', inventory);
+      console.log(`✓ Retrieved ${inventory.length} inventory items for retailer ${retailerId}`);
       return inventory;
     } catch (error) {
       console.error('Error getting inventory:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add or update inventory entry for a retailer
+   */
+  async addOrUpdateInventory(
+    userId: number,
+    brand: string,
+    cylinderSize: string,
+    quantityToAdd: number,
+    pricePerUnit: number
+  ) {
+    try {
+      const retailer = await this.getRetailerByUserId(userId);
+      const retailerId = retailer.id;
+
+      console.log(
+        `📦 Adding inventory: Retailer ${retailerId}, ${brand} ${cylinderSize}, ${quantityToAdd} units @ ${pricePerUnit}`
+      );
+
+      const existing = await db.query.retailInventory.findFirst({
+        where: and(
+          eq(schema.retailInventory.retailer_id, retailerId),
+          eq(schema.retailInventory.brand, brand),
+          eq(schema.retailInventory.cylinder_size, cylinderSize)
+        ),
+      });
+
+      if (existing) {
+        console.log(`✓ Updating existing inventory (ID: ${existing.id})`);
+        await db
+          .update(schema.retailInventory)
+          .set({
+            quantity_available: existing.quantity_available + quantityToAdd,
+            price_per_unit: pricePerUnit.toString(),
+            updated_at: new Date(),
+            last_restocked: new Date(),
+          })
+          .where(eq(schema.retailInventory.id, existing.id));
+      } else {
+        console.log('✓ Creating new inventory entry');
+        await db.insert(schema.retailInventory).values({
+          retailer_id: retailerId,
+          brand,
+          cylinder_size: cylinderSize,
+          quantity_available: quantityToAdd,
+          price_per_unit: pricePerUnit.toString(),
+          last_restocked: new Date(),
+        });
+      }
+
+      console.log('✓ Inventory added/updated successfully');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Error adding/updating inventory:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Deduct inventory when an order is created/processed
+   */
+  async deductInventory(
+    retailerId: number,
+    brand: string,
+    cylinderSize: string,
+    quantityToDeduct: number
+  ) {
+    try {
+      console.log(
+        `📉 Deducting inventory: ${quantityToDeduct} units of ${brand} ${cylinderSize} from retailer ${retailerId}`
+      );
+
+      const inventory = await db.query.retailInventory.findFirst({
+        where: and(
+          eq(schema.retailInventory.retailer_id, retailerId),
+          eq(schema.retailInventory.brand, brand),
+          eq(schema.retailInventory.cylinder_size, cylinderSize)
+        ),
+      });
+
+      if (!inventory) {
+        throw new AppError(444, 'Inventory entry not found');
+      }
+
+      if (inventory.quantity_available < quantityToDeduct) {
+        throw new AppError(
+          400,
+          `Insufficient stock. Available: ${inventory.quantity_available}, Requested: ${quantityToDeduct}`
+        );
+      }
+
+      await db
+        .update(schema.retailInventory)
+        .set({
+          quantity_available: inventory.quantity_available - quantityToDeduct,
+          updated_at: new Date(),
+        })
+        .where(eq(schema.retailInventory.id, inventory.id));
+
+      console.log(
+        `✓ Inventory deducted. New quantity: ${inventory.quantity_available - quantityToDeduct}`
+      );
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Error deducting inventory:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Legacy stock update method (Updates a specific inventory item by ID)
+   */
+  async updateInventoryItem(userId: number, itemId: number, quantity: number) {
+    try {
+      if (quantity < 0) {
+        throw new AppError(400, "Quantity cannot be negative");
+      }
+
+      await this.getRetailerByUserId(userId);
+
+      const updated = await db
+        .update(schema.retailInventory)
+        .set({ 
+          quantity_available: quantity,
+          updated_at: new Date()
+        })
+        .where(eq(schema.retailInventory.id, itemId))
+        .returning();
+
+      console.log(`✓ Inventory item ${itemId} updated to ${quantity}`);
+      return updated[0];
+    } catch (error) {
+      console.error('Error updating inventory item:', error);
       throw error;
     }
   }
@@ -164,18 +366,10 @@ export class RetailerService {
    */
   async getMPesaSettings(userId: number) {
     try {
-      const retailer = await db
-        .select()
-        .from(schema.retailers)
-        .where(eq(schema.retailers.user_id, userId));
+      await this.getRetailerByUserId(userId);
 
-      if (retailer.length === 0) {
-        throw new AppError(403, "User is not a retailer");
-      }
-
-      // Return stored M-Pesa phone (you would query mpesa_settings table in production)
       return {
-        phone: '', // Empty if not set
+        phone: '', 
         isVerified: false,
       };
     } catch (error) {
@@ -193,16 +387,8 @@ export class RetailerService {
         throw new AppError(400, "Invalid phone number format");
       }
 
-      const retailer = await db
-        .select()
-        .from(schema.retailers)
-        .where(eq(schema.retailers.user_id, userId));
+      await this.getRetailerByUserId(userId);
 
-      if (retailer.length === 0) {
-        throw new AppError(403, "User is not a retailer");
-      }
-
-      // In production, save to mpesa_settings table
       console.log(`✓ M-Pesa phone updated for retailer: ${phone}`);
 
       return {
@@ -221,16 +407,8 @@ export class RetailerService {
    */
   async acceptOrder(userId: number, orderId: number) {
     try {
-      const retailer = await db
-        .select()
-        .from(schema.retailers)
-        .where(eq(schema.retailers.user_id, userId));
+      const retailer = await this.getRetailerByUserId(userId);
 
-      if (retailer.length === 0) {
-        throw new AppError(403, "User is not a retailer");
-      }
-
-      // Get order
       const order = await db
         .select()
         .from(schema.orders)
@@ -240,19 +418,16 @@ export class RetailerService {
         throw new AppError(404, "Order not found");
       }
 
-      // Check stock
-      const newStock = retailer[0].stock_quantity - order[0].quantity;
-      if (newStock < 0) {
-        throw new AppError(400, "Insufficient stock");
+      // Deduct inventory stock if order specifies brand and size
+      if (order[0].brand && order[0].cylinder_size) {
+        await this.deductInventory(
+          retailer.id,
+          order[0].brand,
+          order[0].cylinder_size,
+          order[0].quantity
+        );
       }
 
-      // Update stock
-      await db
-        .update(schema.retailers)
-        .set({ stock_quantity: newStock })
-        .where(eq(schema.retailers.id, retailer[0].id));
-
-      // Update order status
       const updated = await db
         .update(schema.orders)
         .set({ status: "confirmed" })
@@ -272,14 +447,7 @@ export class RetailerService {
    */
   async rejectOrder(userId: number, orderId: number) {
     try {
-      const retailer = await db
-        .select()
-        .from(schema.retailers)
-        .where(eq(schema.retailers.user_id, userId));
-
-      if (retailer.length === 0) {
-        throw new AppError(403, "User is not a retailer");
-      }
+      await this.getRetailerByUserId(userId);
 
       const updated = await db
         .update(schema.orders)
@@ -300,21 +468,13 @@ export class RetailerService {
    */
   async getPerformanceMetrics(userId: number, period: 'daily' | 'weekly' | 'monthly' = 'monthly') {
     try {
-      const retailer = await db
-        .select()
-        .from(schema.retailers)
-        .where(eq(schema.retailers.user_id, userId));
-
-      if (retailer.length === 0) {
-        throw new AppError(403, "User is not a retailer");
-      }
+      const retailer = await this.getRetailerByUserId(userId);
 
       const orders = await db
         .select()
         .from(schema.orders)
-        .where(eq(schema.orders.retailer_id, retailer[0].id));
+        .where(eq(schema.orders.retailer_id, retailer.id));
 
-      // Filter by period
       let periodOrders = orders;
       const now = new Date();
 
@@ -350,7 +510,7 @@ export class RetailerService {
         ordersDelivered: deliveredOrders,
         cancellationRate: `${cancellationRate}%`,
         avgDeliveryTime: '2-4 hours',
-        customerSatisfaction: 4.8,
+        customerSatisfaction: parseFloat(retailer.rating || '4.8'),
       };
     } catch (error) {
       console.error('Error getting performance metrics:', error);
@@ -359,38 +519,17 @@ export class RetailerService {
   }
 
   /**
-   * Update inventory item
+   * Get retailer directly by primary key ID
    */
-  async updateInventoryItem(userId: number, itemId: number, quantity: number) {
+  async getRetailerById(retailerId: number) {
     try {
-      if (quantity < 0) {
-        throw new AppError(400, "Quantity cannot be negative");
-      }
+      const retailer = await db.query.retailers.findFirst({
+        where: eq(schema.retailers.id, retailerId),
+      });
 
-      const retailer = await db
-        .select()
-        .from(schema.retailers)
-        .where(eq(schema.retailers.user_id, userId));
-
-      if (retailer.length === 0) {
-        throw new AppError(403, "User is not a retailer");
-      }
-
-      // Update inventory
-      const updated = await db
-        .update(schema.retailers)
-        .set({ stock_quantity: quantity })
-        .where(eq(schema.retailers.id, retailer[0].id))
-        .returning();
-
-      console.log(`✓ Inventory updated to ${quantity}kg`);
-      return {
-        id: itemId,
-        quantity,
-        updatedAt: new Date(),
-      };
+      return retailer || null;
     } catch (error) {
-      console.error('Error updating inventory:', error);
+      console.error('❌ Error fetching retailer by ID:', error);
       throw error;
     }
   }

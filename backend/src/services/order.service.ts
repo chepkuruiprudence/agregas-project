@@ -1,10 +1,12 @@
+// backend/src/services/orders.service.ts
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { eq, and, desc, or, ilike } from "drizzle-orm";
+import { eq, and, desc, ilike } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { pricingService } from "./pricing.service";
 import { deliveryService } from "./delivery.service";
 import { notificationService } from "./notification.service";
+import { retailerService } from "./retailer.service";
 import { AppError } from "../middleware/errorHandler";
 
 const pool = new Pool({
@@ -15,24 +17,31 @@ const db = drizzle(pool, { schema });
 
 export class OrderService {
   /**
-   * Create a new order
-   * Now with improved product matching and error handling
+   * Create a new order with product verification, spatial retailer matching,
+   * price dynamic calculations, real-time inventory validation/deduction, delivery tracking,
+   * and retailer notifications.
    */
   async createOrder(
     customerId: number,
-    purchaseType: 'refill' | 'outright',
+    purchaseType: "refill" | "outright",
     brand: string,
     cylinderSize: string,
     quantity: number,
     latitude: string,
     longitude: string,
     deliveryAddress: string,
-    paymentMethod: string
+    paymentMethod: string,
+    explicitRetailerId?: number
   ) {
     try {
-      console.log('🔍 Order Attempt: Querying products for Brand:', brand, 'and Size:', cylinderSize);
+      console.log(
+        "🔍 Order Attempt: Querying products for Brand:",
+        brand,
+        "and Size:",
+        cylinderSize
+      );
 
-      // Step 1: Find product - try exact match first, then case-insensitive fallback
+      // Step 1: Find product - exact match first, then case-insensitive fallback
       let product = await db
         .select()
         .from(schema.products)
@@ -43,9 +52,8 @@ export class OrderService {
           )
         );
 
-      // Fallback: Case-insensitive search
       if (product.length === 0) {
-        console.log('⚠️ Exact match failed. Attempting case-insensitive fallback matching...');
+        console.log("⚠️ Exact match failed. Attempting case-insensitive fallback matching...");
         product = await db
           .select()
           .from(schema.products)
@@ -58,69 +66,94 @@ export class OrderService {
       }
 
       if (product.length === 0) {
-        // Helpful error: show available products
         const availableProducts = await db
           .select()
           .from(schema.products)
           .limit(10);
 
         const availableOptions = availableProducts
-          .map(p => `${p.brand} ${p.cylinder_size}`)
-          .join(', ');
+          .map((p) => `${p.brand} ${p.cylinder_size}`)
+          .join(", ");
 
         throw new AppError(
           404,
           `Product not found. No database match for Brand: "${brand}" with Cylinder Size: "${cylinderSize}". ` +
-          `Available options: ${availableOptions || 'None - please seed the products table'}.`
+            `Available options: ${availableOptions || "None - please seed the products table"}.`
         );
       }
 
-      console.log('✓ Product found:', product[0].brand, product[0].cylinder_size);
+      console.log("✓ Product found:", product[0].brand, product[0].cylinder_size);
 
       // Step 2: Validate quantity
       if (quantity < 1 || quantity > 1000) {
-        throw new AppError(400, 'Invalid quantity. Must be between 1 and 1000 kg.');
+        throw new AppError(400, "Invalid quantity. Must be between 1 and 1000 kg.");
       }
 
-      // Step 3: Validate location
+      // Step 3: Validate coordinates
       const lat = parseFloat(latitude);
       const lng = parseFloat(longitude);
-      
+
       if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-        throw new AppError(400, 'Invalid coordinates. Check latitude and longitude.');
+        throw new AppError(400, "Invalid coordinates. Check latitude and longitude.");
       }
 
       console.log(`✓ Location validated: ${lat}, ${lng}`);
 
-      // Step 4: Get customer
+      // Step 4: Verify customer existence
       const customer = await db
         .select()
         .from(schema.users)
         .where(eq(schema.users.id, customerId));
 
       if (customer.length === 0) {
-        throw new AppError(404, 'Customer not found');
+        throw new AppError(404, "Customer not found");
       }
 
-      console.log('✓ Customer found:', customer[0].email);
+      console.log("✓ Customer found:", customer[0].email);
 
-      // Step 5: Find nearest retailer with stock
-      // For now, get first active retailer (in real app, use geo-distance algorithm)
-      const retailers = await db
-        .select()
-        .from(schema.retailers)
-        .where(eq(schema.retailers.is_active, true));
+      // Step 5: Match Retailer (Targeted ID or postgis nearest search fallback)
+      let retailer: any;
 
-      if (retailers.length === 0) {
-        throw new AppError(404, 'No retailers available to fulfill this order');
+      if (explicitRetailerId) {
+        retailer = await retailerService.getRetailerById(explicitRetailerId);
+        if (!retailer) {
+          throw new AppError(404, "Specified retailer not found");
+        }
+      } else {
+        const nearestResult = await retailerService.findNearestRetailerWithStock(lat, lng);
+        if (!nearestResult || !nearestResult.retailer) {
+          throw new AppError(404, "No retailers with available stock found near your location");
+        }
+        retailer = nearestResult.retailer;
       }
 
-      const retailer = retailers[0]; // Use first available retailer
-      console.log('✓ Retailer matched:', retailer.business_name);
+      console.log("✓ Retailer matched:", retailer.business_name || retailer.id);
 
-      // Step 6: Calculate price
-      // Use dummy supply/demand for now (would be real-time in production)
-      const supply = 1000;
+      // Step 6: Verify retailer inventory stock availability
+      const inventory = await db.query.retailInventory.findFirst({
+        where: and(
+          eq(schema.retailInventory.retailer_id, retailer.id),
+          ilike(schema.retailInventory.brand, brand),
+          ilike(schema.retailInventory.cylinder_size, cylinderSize)
+        ),
+      });
+
+      if (!inventory) {
+        throw new AppError(
+          404,
+          `Product (${brand} ${cylinderSize}) is not available in stock at ${retailer.business_name || "this retailer"}`
+        );
+      }
+
+      if (inventory.quantity_available < quantity) {
+        throw new AppError(
+          400,
+          `Insufficient stock at retailer. Available: ${inventory.quantity_available}, Requested: ${quantity}`
+        );
+      }
+
+      // Step 7: Calculate price dynamically
+      const supply = inventory.quantity_available;
       const demand = 500;
       const priceCalc = await pricingService.calculatePrice(
         brand,
@@ -130,51 +163,64 @@ export class OrderService {
         demand
       );
 
-      console.log('✓ Price calculated:', priceCalc);
+      console.log("✓ Price calculated:", priceCalc);
 
-      // Step 7: Create order
+      // Step 8: Insert order transaction record
       const newOrder = await db
         .insert(schema.orders)
         .values({
           customer_id: customerId,
           retailer_id: retailer.id,
-          product_id: product[0].id,
-          status: 'pending',
+          status: "pending",
           quantity,
           brand,
           cylinder_size: cylinderSize,
           purchase_type: purchaseType,
           latitude: lat.toString(),
           longitude: lng.toString(),
+          delivery_latitude: lat.toString(),
+          delivery_longitude: lng.toString(),
           unit_price: priceCalc.basePrice.toString(),
           total_price: priceCalc.totalPrice.toString(),
           rebate_amount: priceCalc.rebateAmount.toString(),
           final_price: priceCalc.finalPrice.toString(),
           delivery_address: deliveryAddress,
           payment_method: paymentMethod,
-          payment_status: 'pending',
+          payment_status: "pending",
         } as any)
         .returning();
 
       if (newOrder.length === 0) {
-        throw new AppError(500, 'Failed to create order');
+        throw new AppError(500, "Failed to create order");
       }
 
-      console.log('✓ Order created:', newOrder[0].id);
+      console.log("✓ Order created:", newOrder[0].id);
 
-      // Step 8: Create delivery tracking
-      await deliveryService.createDeliveryTracking(newOrder[0].id, retailer.id);
-      console.log('✓ Delivery tracking created');
-
-      // Step 9: Send notification to retailer
-      await notificationService.createNotification(
-        retailer.user_id,
-        'order_update',
-        `New order #${newOrder[0].id}`,
-        `New order for ${quantity}kg of ${brand} ${cylinderSize}`,
-        newOrder[0].id
+      // Step 9: Deduct items from Retailer Inventory
+      await retailerService.deductInventory(
+        retailer.id,
+        brand,
+        cylinderSize,
+        quantity
       );
-      console.log('✓ Retailer notification sent');
+      console.log(`📉 Deducted ${quantity} units from retailer inventory`);
+
+      // Step 10: Initialize delivery tracking record
+      await deliveryService.createDeliveryTracking(newOrder[0].id, retailer.id);
+      console.log("✓ Delivery tracking created");
+
+      // Step 11: Notify retailer
+      const retailerUserId = retailer.user_id || retailer.userId;
+      if (retailerUserId) {
+        await notificationService.createNotification(
+          retailerUserId,
+          "order_update",
+          `New order #${newOrder[0].id}`,
+          `New order for ${quantity} unit(s) of ${brand} ${cylinderSize}`,
+          newOrder[0].id
+        );
+        console.log("✓ Retailer notification sent");
+      }
 
       return {
         id: newOrder[0].id,
@@ -184,11 +230,12 @@ export class OrderService {
         quantity: newOrder[0].quantity,
         finalPrice: newOrder[0].final_price,
         retailerName: retailer.business_name,
-        estimatedDelivery: '2-4 hours',
+        estimatedDelivery: "2-4 hours",
         createdAt: newOrder[0].created_at,
+        order: newOrder[0],
       };
     } catch (error) {
-      console.error('❌ Order Creation Engine Exception:', error);
+      console.error("❌ Order Creation Engine Exception:", error);
       throw error;
     }
   }
@@ -204,7 +251,7 @@ export class OrderService {
         .where(eq(schema.orders.id, orderId));
 
       if (order.length === 0) {
-        throw new AppError(404, 'Order not found');
+        throw new AppError(404, "Order not found");
       }
 
       return order[0];
@@ -214,15 +261,17 @@ export class OrderService {
   }
 
   /**
-   * Get all orders for a customer
+   * Get all orders for a customer with optional limit & offset pagination
    */
-  async getCustomerOrders(customerId: number) {
+  async getCustomerOrders(customerId: number, limit = 20, offset = 0) {
     try {
       const orders = await db
         .select()
         .from(schema.orders)
         .where(eq(schema.orders.customer_id, customerId))
-        .orderBy(desc(schema.orders.created_at));
+        .orderBy(desc(schema.orders.created_at))
+        .limit(limit)
+        .offset(offset);
 
       console.log(`✓ Retrieved ${orders.length} orders for customer ${customerId}`);
       return orders;
@@ -232,32 +281,65 @@ export class OrderService {
   }
 
   /**
-   * Update order status
+   * Get all orders assigned to a specific retailer
+   */
+  async getRetailerOrders(retailerId: number, limit = 20, offset = 0) {
+    try {
+      const retailerOrders = await db
+        .select()
+        .from(schema.orders)
+        .where(eq(schema.orders.retailer_id, retailerId))
+        .orderBy(desc(schema.orders.created_at))
+        .limit(limit)
+        .offset(offset);
+
+      console.log(`✓ Retrieved ${retailerOrders.length} orders for retailer ${retailerId}`);
+      return retailerOrders;
+    } catch (error) {
+      console.error("❌ Error fetching retailer orders:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update order status with notification triggers
    */
   async updateOrderStatus(orderId: number, newStatus: string) {
     try {
-      const validStatuses = ['pending', 'confirmed', 'processing', 'in_delivery', 'delivered', 'cancelled'];
-      
+      const validStatuses = [
+        "pending",
+        "confirmed",
+        "processing",
+        "in_delivery",
+        "delivered",
+        "cancelled",
+      ];
+
       if (!validStatuses.includes(newStatus)) {
-        throw new AppError(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+        throw new AppError(
+          400,
+          `Invalid status. Must be one of: ${validStatuses.join(", ")}`
+        );
       }
 
       const updated = await db
         .update(schema.orders)
-        .set({ status: newStatus as any })
+        .set({
+          status: newStatus as any,
+          updated_at: new Date(),
+        })
         .where(eq(schema.orders.id, orderId))
         .returning();
 
       if (updated.length === 0) {
-        throw new AppError(404, 'Order not found');
+        throw new AppError(404, "Order not found");
       }
 
-      // Send notification to customer
       const order = updated[0];
       await notificationService.createNotification(
         order.customer_id,
-        'order_update',
-        'Order Status Updated',
+        "order_update",
+        "Order Status Updated",
         `Your order #${orderId} status is now ${newStatus}`,
         orderId
       );
@@ -270,7 +352,7 @@ export class OrderService {
   }
 
   /**
-   * Cancel an order (only if pending or confirmed)
+   * Cancel an order (only allowed if pending or confirmed)
    */
   async cancelOrder(orderId: number) {
     try {
@@ -280,11 +362,11 @@ export class OrderService {
         .where(eq(schema.orders.id, orderId));
 
       if (order.length === 0) {
-        throw new AppError(404, 'Order not found');
+        throw new AppError(404, "Order not found");
       }
 
       const currentOrder = order[0];
-      const canBeCancelled = ['pending', 'confirmed'].includes(currentOrder.status);
+      const canBeCancelled = ["pending", "confirmed"].includes(currentOrder.status);
 
       if (!canBeCancelled) {
         throw new AppError(
@@ -295,7 +377,10 @@ export class OrderService {
 
       const updated = await db
         .update(schema.orders)
-        .set({ status: 'cancelled' })
+        .set({
+          status: "cancelled",
+          updated_at: new Date(),
+        })
         .where(eq(schema.orders.id, orderId))
         .returning();
 

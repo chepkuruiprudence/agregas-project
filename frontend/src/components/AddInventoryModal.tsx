@@ -1,85 +1,164 @@
-// frontend/src/components/AddInventoryModal.tsx
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useApi } from '../hooks/useApi';
 
 interface AddInventoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (item: {
-    productName: string;
+    brand: string;
+    cylinderSize: string;
     quantity: number;
-    price: number;
-    unit: string;
+    pricePerUnit: number;
   }) => void;
 }
 
 export const AddInventoryModal = ({ isOpen, onClose, onAdd }: AddInventoryModalProps) => {
+  const { request, loading: apiLoading, error: apiError } = useApi();
+  const [brands, setBrands] = useState<string[]>([]);
+  const [availableSizes, setAvailableSizes] = useState<string[]>([]);
+  const [loadingBrands, setLoadingBrands] = useState(false);
+  const [loadingSizes, setLoadingSizes] = useState(false);
+
   const [formData, setFormData] = useState({
-    productName: '',
+    brand: '',
+    cylinderSize: '',
     quantity: '',
-    price: '',
-    unit: 'cylinder',
+    pricePerUnit: '',
   });
   const [error, setError] = useState('');
+
+  // Load brands on modal open
+  useEffect(() => {
+    if (isOpen) {
+      fetchBrands();
+    }
+  }, [isOpen]);
+
+  // Load sizes when brand selection changes
+  useEffect(() => {
+    if (formData.brand) {
+      fetchSizesForBrand(formData.brand);
+    } else {
+      setAvailableSizes([]);
+    }
+  }, [formData.brand]);
+
+  const fetchBrands = async () => {
+    try {
+      setLoadingBrands(true);
+      setError('');
+
+      // Uses Vite proxy rule matching /api -> http://localhost:3000/api/brands
+      const resData = await request('get', '/brands');
+      const brandsList = resData?.data || resData;
+
+      if (Array.isArray(brandsList)) {
+        const parsed = brandsList
+          .map((b: any) => (typeof b === 'string' ? b : b.name || b.brand))
+          .filter(Boolean);
+
+        setBrands(Array.from(new Set(parsed)));
+      }
+    } catch (err: any) {
+      console.error('Failed to load brands:', err);
+      setError('Failed to load brands list');
+    } finally {
+      setLoadingBrands(false);
+    }
+  };
+
+  const fetchSizesForBrand = async (brandName: string) => {
+    try {
+      setLoadingSizes(true);
+      setAvailableSizes([]);
+
+      // Uses Vite proxy matching /api -> http://localhost:3000/api/brand/products/by-brand/:brandName
+      const resData = await request(
+        'get',
+        `/brand/products/by-brand/${encodeURIComponent(brandName)}`
+      );
+      const items = resData?.data || resData?.products || resData;
+
+      if (Array.isArray(items)) {
+        const parsedSizes = items
+          .map((s: any) => (typeof s === 'string' ? s : s.cylinderSize || s.cylinder_size || s.size))
+          .filter(Boolean);
+
+        setAvailableSizes(Array.from(new Set(parsedSizes)));
+      }
+    } catch (err: any) {
+      console.error('Failed to load sizes:', err);
+      setAvailableSizes([]);
+    } finally {
+      setLoadingSizes(false);
+    }
+  };
 
   if (!isOpen) return null;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    setError(''); // Clear error on change
+    if (name === 'brand') {
+      setFormData((prev) => ({
+        ...prev,
+        brand: value,
+        cylinderSize: '',
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+    setError('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validation
-    if (!formData.productName.trim()) {
-      setError('Product name is required');
+
+    if (!formData.brand) {
+      setError('Brand is required');
+      return;
+    }
+    if (!formData.cylinderSize) {
+      setError('Cylinder size is required');
       return;
     }
     if (!formData.quantity || parseInt(formData.quantity) <= 0) {
       setError('Quantity must be greater than 0');
       return;
     }
-    if (!formData.price || parseFloat(formData.price) <= 0) {
+    if (!formData.pricePerUnit || parseFloat(formData.pricePerUnit) <= 0) {
       setError('Price must be greater than 0');
       return;
     }
 
-    // Add inventory
     onAdd({
-      productName: formData.productName,
+      brand: formData.brand,
+      cylinderSize: formData.cylinderSize,
       quantity: parseInt(formData.quantity),
-      price: parseFloat(formData.price),
-      unit: formData.unit,
+      pricePerUnit: parseFloat(formData.pricePerUnit),
     });
 
-    // Reset form
     setFormData({
-      productName: '',
+      brand: '',
+      cylinderSize: '',
       quantity: '',
-      price: '',
-      unit: 'cylinder',
+      pricePerUnit: '',
     });
+    setAvailableSizes([]);
   };
 
   return (
     <>
-      {/* Overlay */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity"
         onClick={onClose}
       />
 
-      {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-screen overflow-y-auto">
-          {/* Header */}
           <div className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-white">
             <h2 className="text-2xl font-bold text-gray-900">Add Stock</h2>
             <button
@@ -90,73 +169,88 @@ export const AddInventoryModal = ({ isOpen, onClose, onAdd }: AddInventoryModalP
             </button>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            {/* Error Message */}
-            {error && (
+            {(error || apiError) && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                {error}
+                {error || apiError}
               </div>
             )}
 
-            {/* Product Name */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Product Name
+                Brand *
               </label>
-              <input
-                type="text"
-                name="productName"
-                value={formData.productName}
-                onChange={handleChange}
-                placeholder="e.g., 6kg Cylinder, 13kg Cylinder"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
+              {loadingBrands ? (
+                <div className="text-gray-500 text-sm py-1">Loading brands...</div>
+              ) : (
+                <select
+                  name="brand"
+                  value={formData.brand}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="">Select a brand</option>
+                  {brands.map((brand) => (
+                    <option key={brand} value={brand}>
+                      {brand}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
-            {/* Quantity */}
+            {formData.brand && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Cylinder Size *
+                </label>
+                {loadingSizes ? (
+                  <div className="text-gray-500 text-sm py-1">Loading sizes...</div>
+                ) : availableSizes.length > 0 ? (
+                  <select
+                    name="cylinderSize"
+                    value={formData.cylinderSize}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="">Select size</option>
+                    {availableSizes.map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="text-gray-500 text-sm py-1">
+                    No sizes available for {formData.brand}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Quantity
+                Quantity to Add *
               </label>
               <input
                 type="number"
                 name="quantity"
                 value={formData.quantity}
                 onChange={handleChange}
-                placeholder="e.g., 10"
+                placeholder="e.g., 50"
                 min="1"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
 
-            {/* Unit */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Unit
-              </label>
-              <select
-                name="unit"
-                value={formData.unit}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="cylinder">Cylinder</option>
-                <option value="kg">Kilogram</option>
-                <option value="liter">Liter</option>
-                <option value="carton">Carton</option>
-              </select>
-            </div>
-
-            {/* Price */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Price per Unit (KSh)
+                Price per Unit (KSh) *
               </label>
               <input
                 type="number"
-                name="price"
-                value={formData.price}
+                name="pricePerUnit"
+                value={formData.pricePerUnit}
                 onChange={handleChange}
                 placeholder="e.g., 850"
                 min="0.01"
@@ -165,18 +259,22 @@ export const AddInventoryModal = ({ isOpen, onClose, onAdd }: AddInventoryModalP
               />
             </div>
 
-            {/* Summary */}
-            {formData.quantity && formData.price && (
+            {formData.quantity && formData.pricePerUnit && (
               <div className="bg-primary-50 border border-primary-200 rounded-lg p-3">
                 <p className="text-sm text-gray-600">
                   Total Value: <span className="font-bold text-primary-600">
-                    KSh {(parseInt(formData.quantity) * parseFloat(formData.price) || 0).toLocaleString()}
+                    KSh {(parseInt(formData.quantity) * parseFloat(formData.pricePerUnit) || 0).toLocaleString()}
                   </span>
                 </p>
               </div>
             )}
 
-            {/* Action Buttons */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-700">
+                ℹ️ This stock is added to your retailer account only.
+              </p>
+            </div>
+
             <div className="flex gap-3 pt-4 border-t border-gray-200">
               <button
                 type="button"
@@ -187,9 +285,10 @@ export const AddInventoryModal = ({ isOpen, onClose, onAdd }: AddInventoryModalP
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold transition"
+                disabled={apiLoading}
+                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold transition disabled:opacity-50"
               >
-                Add Stock
+                {apiLoading ? 'Processing...' : 'Add Stock'}
               </button>
             </div>
           </form>
