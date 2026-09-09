@@ -175,9 +175,6 @@ export class OrderService {
           quantity,
           brand,
           cylinder_size: cylinderSize,
-          purchase_type: purchaseType,
-          latitude: lat.toString(),
-          longitude: lng.toString(),
           delivery_latitude: lat.toString(),
           delivery_longitude: lng.toString(),
           unit_price: priceCalc.basePrice.toString(),
@@ -187,7 +184,7 @@ export class OrderService {
           delivery_address: deliveryAddress,
           payment_method: paymentMethod,
           payment_status: "pending",
-        } as any)
+        })
         .returning();
 
       if (newOrder.length === 0) {
