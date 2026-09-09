@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { AppError } from "../middleware/errorHandler";
 
@@ -11,6 +11,22 @@ const pool = new Pool({
 const db = drizzle(pool, { schema });
 
 export class GasCreditService {
+  /**
+   * All loans for a customer, newest first.
+   * Powers GET /api/gas-credit/loans/mine (dashboard gas-credit page).
+   */
+  async getMyLoans(customerId: number) {
+    try {
+      return await db
+        .select()
+        .from(schema.gasCredit)
+        .where(eq(schema.gasCredit.customer_id, customerId))
+        .orderBy(desc(schema.gasCredit.created_at));
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async checkEligibility(customerId: number) {
     try {
       // Check 1: 3+ orders in last 45 days

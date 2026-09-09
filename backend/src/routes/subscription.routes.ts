@@ -4,6 +4,9 @@ import { authenticateToken } from "../middleware/auth";
 
 const router = express.Router();
 
+// GET /api/subscriptions/mine (must come before "/:id")
+router.get("/mine", authenticateToken, subscriptionController.getMySubscriptions);
+
 // POST /api/subscriptions/create
 router.post("/create", authenticateToken, subscriptionController.createSubscription);
 

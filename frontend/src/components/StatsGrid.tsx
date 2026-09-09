@@ -33,56 +33,58 @@ export const StatsGrid = () => {
 
       console.log('📊 Fetching dashboard stats...');
 
-      // ✅ FIXED: Call the correct endpoint
-      const [ordersRes, loyaltyRes, cgcRes] = await Promise.all([
-        request('get', '/orders/customer'),  // ✅ Changed from /orders/customer to /orders
-        request('get', '/loyalty/balance/:customerId'),
-        request('get', '/cgc/balance/:customerId'),
+      // request() returns the response body directly:
+      // { success, statusCode, data, message }
+      const [ordersRes, loyaltyRes, cgcRes, subsRes] = await Promise.all([
+        request('get', '/orders/customer'),
+        request('get', '/loyalty/balance/me'),
+        request('get', '/cgc/balance/me'),
+        request('get', '/subscriptions/mine'),
       ]);
 
-      console.log('✓ Orders response:', ordersRes.data);
-      console.log('✓ Loyalty response:', loyaltyRes.data);
-      console.log('✓ CGC response:', cgcRes.data);
+      console.log('✓ Orders response:', ordersRes);
+      console.log('✓ Loyalty response:', loyaltyRes);
+      console.log('✓ CGC response:', cgcRes);
 
-      // Parse orders
+      // Parse orders (body.data is the orders array)
       let totalOrders = 0;
-      if (ordersRes.data?.data) {
-        totalOrders = Array.isArray(ordersRes.data.data) 
-          ? ordersRes.data.data.length 
-          : 0;
+      if (Array.isArray(ordersRes?.data)) {
+        totalOrders = ordersRes.data.length;
       }
 
-      // Parse loyalty points
+      // Parse loyalty points (body.data = { customerId, balance })
       let loyaltyPoints = 0;
-      if (loyaltyRes.data?.data) {
-        if (typeof loyaltyRes.data.data === 'object' && 'balance' in loyaltyRes.data.data) {
-          loyaltyPoints = loyaltyRes.data.data.balance || 0;
-        } else if (typeof loyaltyRes.data.data === 'number') {
-          loyaltyPoints = loyaltyRes.data.data;
-        }
+      if (typeof loyaltyRes?.data?.balance === 'number') {
+        loyaltyPoints = loyaltyRes.data.balance;
       }
 
-      // Parse CGC credits
+      // Parse CGC credits (body.data = { customerId, balance })
       let carbonCredits = 0;
-      if (cgcRes.data?.data) {
-        if (typeof cgcRes.data.data === 'object' && 'balance' in cgcRes.data.data) {
-          carbonCredits = cgcRes.data.data.balance || 0;
-        } else if (typeof cgcRes.data.data === 'number') {
-          carbonCredits = cgcRes.data.data;
-        }
+      if (typeof cgcRes?.data?.balance === 'number') {
+        carbonCredits = cgcRes.data.balance;
+      }
+
+      // Parse subscription tier (body.data = subscription[] newest first)
+      let subscriptionTier = 'None';
+      const subs = Array.isArray(subsRes?.data) ? subsRes.data : [];
+      const activeSub = subs.find((s: any) => s.status === 'active');
+      if (activeSub) {
+        subscriptionTier =
+          activeSub.tier.charAt(0).toUpperCase() + activeSub.tier.slice(1);
       }
 
       console.log('✓ Parsed stats:', {
         totalOrders,
         loyaltyPoints,
         carbonCredits,
+        subscriptionTier,
       });
 
       setStats({
         totalOrders,
         loyaltyPoints,
         carbonCredits,
-        subscriptionTier: 'None',
+        subscriptionTier,
       });
     } catch (err) {
       console.error('❌ API fetch error:', err);

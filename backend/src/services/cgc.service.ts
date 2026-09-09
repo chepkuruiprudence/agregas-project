@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { AppError } from "../middleware/errorHandler";
 
@@ -70,6 +70,22 @@ export class CgcService {
         cgcRedeemed: cgcAmount,
         discountApplied: redemptionAmount,
       };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Earn/redeem history for a customer (newest first).
+   * Powers GET /api/cgc/history/me (rewards page).
+   */
+  async getHistory(customerId: number) {
+    try {
+      return await db
+        .select()
+        .from(schema.cgcTokens)
+        .where(eq(schema.cgcTokens.customer_id, customerId))
+        .orderBy(desc(schema.cgcTokens.created_at));
     } catch (error) {
       throw error;
     }

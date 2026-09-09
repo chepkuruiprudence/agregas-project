@@ -43,11 +43,12 @@ export const CustomerDashboard = () => {
   const fetchRecentOrders = async () => {
     try {
       setOrdersLoading(true);
+      // request() returns the body: { success, data: orders[] }
       const response = await request('get', '/orders/customer');
-      
-      if (response.data?.data && Array.isArray(response.data.data)) {
+
+      if (Array.isArray(response?.data)) {
         // Get first 3 orders
-        const orders = response.data.data.slice(0, 3).map((order: any) => ({
+        const orders = response.data.slice(0, 3).map((order: any) => ({
           id: order.id,
           brand: order.brand,
           quantity: order.quantity,

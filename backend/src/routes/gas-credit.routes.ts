@@ -4,6 +4,9 @@ import { authenticateToken } from "../middleware/auth";
 
 const router = express.Router();
 
+// GET /api/gas-credit/loans/mine (must come before parameterized routes)
+router.get("/loans/mine", authenticateToken, gasCreditController.getMyLoans);
+
 // POST /api/gas-credit/check-eligibility
 router.post(
   "/check-eligibility",

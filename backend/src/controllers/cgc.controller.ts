@@ -62,6 +62,34 @@ export async function redeemCGC(
   }
 }
 
+/**
+ * GET /api/cgc/history/me
+ * CGC earn/redeem history for the authenticated customer.
+ */
+export async function getHistory(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    if (!req.user) {
+      throw new AppError(401, "User not authenticated");
+    }
+
+    const history = await cgcService.getHistory(req.user.userId);
+
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "CGC history retrieved",
+      data: history,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getBalance(
   req: Request,
   res: Response,

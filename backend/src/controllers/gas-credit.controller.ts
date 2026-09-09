@@ -26,6 +26,35 @@ export async function checkEligibility(
   }
 }
 
+/**
+ * GET /api/gas-credit/loans/mine
+ * All loans belonging to the authenticated customer (newest first).
+ * NOTE: must be registered before "/:loanId"-style routes.
+ */
+export async function getMyLoans(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    if (!req.user) {
+      throw new AppError(401, "User not authenticated");
+    }
+
+    const loans = await gasCreditService.getMyLoans(req.user.userId);
+
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "Your loans retrieved",
+      data: loans,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function applyForCredit(
   req: Request,
   res: Response,

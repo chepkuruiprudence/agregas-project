@@ -2,6 +2,38 @@ import { Request, Response, NextFunction } from "express";
 import { subscriptionService } from "../services/subscription.service";
 import { AppError } from "../middleware/errorHandler";
 
+/**
+ * GET /api/subscriptions/mine
+ * All subscriptions belonging to the authenticated customer.
+ * NOTE: must be registered before the "/:id" route or "mine" would be
+ * parsed as an ID.
+ */
+export async function getMySubscriptions(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    if (!req.user) {
+      throw new AppError(401, "User not authenticated");
+    }
+
+    const subscriptions = await subscriptionService.getMySubscriptions(
+      req.user.userId
+    );
+
+    res.status(200).json({
+      success: true,
+      statusCode: 200,
+      message: "Your subscriptions retrieved",
+      data: subscriptions,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function createSubscription(
   req: Request,
   res: Response,

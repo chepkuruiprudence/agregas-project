@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { AppError } from "../middleware/errorHandler";
 
@@ -17,6 +17,22 @@ const TIER_CONFIG = {
 };
 
 export class SubscriptionService {
+  /**
+   * All subscriptions for a customer, newest first.
+   * Powers GET /api/subscriptions/mine (dashboard + subscriptions page).
+   */
+  async getMySubscriptions(customerId: number) {
+    try {
+      return await db
+        .select()
+        .from(schema.subscriptions)
+        .where(eq(schema.subscriptions.customer_id, customerId))
+        .orderBy(desc(schema.subscriptions.created_at));
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async createSubscription(
     customerId: number,
     tier: "basic" | "standard" | "premium",

@@ -17,6 +17,10 @@ import './index.css';
 import { Profile } from './pages/Profile';
 import { SettlementDashboard } from './pages/SettlementDashboard';
 import { VerifyOTPForm } from './pages/Verifyotpform';
+import { Subscriptions } from './pages/Subscriptions';
+import { Rewards } from './pages/Rewards';
+import { GasOnCredit } from './pages/GasOnCredit';
+import { Notifications } from './pages/Notifications';
 
 function App() {
   return (
@@ -94,6 +98,40 @@ function App() {
             element={
               <ProtectedRoute requiredRoles={['admin']}>
                 <SettlementDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Customer feature pages */}
+          <Route
+            path="/subscription"
+            element={
+              <ProtectedRoute requiredRoles={['customer']}>
+                <Subscriptions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rewards"
+            element={
+              <ProtectedRoute requiredRoles={['customer']}>
+                <Rewards />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gas-credit"
+            element={
+              <ProtectedRoute requiredRoles={['customer']}>
+                <GasOnCredit />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute requiredRoles={['customer']}>
+                <Notifications />
               </ProtectedRoute>
             }
           />
