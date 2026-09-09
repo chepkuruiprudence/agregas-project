@@ -16,6 +16,7 @@ export * from "./refresh-tokens.table.js";
 export * from "./email-verifications.table.js";
 export * from "./inventory.table.js";
 export * from "./brands.table.js";
+export * from "./mpesa-transactions.table.js";
 
 // Add these exports at the END of the file:
 

@@ -58,6 +58,18 @@ router.post(
 router.post("/confirm", paymentController.confirmPayment); // No auth - can be from external gateway
 
 /**
+ * GET /api/payments/verify/:orderId
+ * ACTIVE payment verification: queries M-Pesa for the outcome of the in-flight
+ * STK push and applies it. Polled by the PaymentPage while awaiting PIN entry.
+ * Customer (owner) only.
+ */
+router.get(
+  "/verify/:orderId",
+  authenticateToken,
+  paymentController.verifyPayment
+);
+
+/**
  * GET /api/payments/status/:orderId
  * Get payment status and history for an order
  */

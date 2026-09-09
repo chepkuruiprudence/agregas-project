@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { registerRoutes } from "./routes";
 import { startSettlementScheduler } from "./jobs/settlement-scheduler";
+import { startMpesaReconciliationScheduler } from "./jobs/mpesa-reconciliation";
 import dns from "node:dns";
 
 dns.setDefaultResultOrder("ipv4first");
@@ -56,9 +57,13 @@ registerRoutes(app);
 // Start settlement scheduler
 startSettlementScheduler();
 
+// Resolve STK pushes whose M-Pesa callback never arrived
+startMpesaReconciliationScheduler();
+
 // Single server initialization call
 app.listen(PORT, () => {
   console.log(`✓ AGREGAS ACSE Backend Running on port ${PORT}`);
   console.log(`✓ Health check active at /health`);
   console.log("✓ Settlement scheduler active");
+  console.log("✓ M-Pesa reconciliation scheduler active");
 });

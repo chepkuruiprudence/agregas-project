@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
@@ -17,6 +17,8 @@ import {
   AlertCircle,
   TrendingUp,
   Wallet,
+  XCircle,
+  RotateCcw,
 } from 'lucide-react';
 
 type PaymentMethod = 'mpesa' | 'card' | 'cash';
@@ -90,7 +92,35 @@ export const PaymentPage = () => {
 
   const order = state?.order;
 
-  // If no order data, redirect
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('mpesa');
+  const [mpesaPhone, setMpesaPhone] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardName, setCardName] = useState('');
+  
+  // Payment processing states
+  const [paying, setPaying] = useState(false);
+  const [awaitingPin, setAwaitingPin] = useState(false);
+  const [paid, setPaid] = useState(false);
+  const [paymentResponse, setPaymentResponse] = useState<PaymentResponse | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+
+  // M-Pesa STK Push: real confirmation comes from Safaricom's async callback
+  // processed by the backend. We poll the status endpoint for the outcome.
+  const [mpesaStatus, setMpesaStatus] = useState<'idle' | 'awaiting' | 'paid' | 'failed'>('idle');
+  const [failureReason, setFailureReason] = useState<string | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollStartRef = useRef<number>(0);
+
+  // Stop polling when the page unmounts
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
+  }, []);
+
+  // If no order data, redirect (kept below all hooks to satisfy Rules of Hooks)
   if (!order) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -106,20 +136,6 @@ export const PaymentPage = () => {
       </div>
     );
   }
-
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('mpesa');
-  const [mpesaPhone, setMpesaPhone] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-  const [cardName, setCardName] = useState('');
-  
-  // Payment processing states
-  const [paying, setPaying] = useState(false);
-  const [awaitingPin, setAwaitingPin] = useState(false);
-  const [paid, setPaid] = useState(false);
-  const [paymentResponse, setPaymentResponse] = useState<PaymentResponse | null>(null);
-  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const parsePrice = (priceStr: string): number => {
     const cleaned = priceStr.replace(/[^0-9.]/g, '');
@@ -147,6 +163,73 @@ export const PaymentPage = () => {
   const formatExpiry = (val: string) => {
     const digits = val.replace(/\D/g, '').slice(0, 4);
     return digits.length >= 3 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
+  };
+
+  const stopPolling = () => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  };
+
+  /**
+   * Poll GET /payments/verify/:orderId until the payment resolves (paid) or
+   * the STK request times out (2 min). Each call actively queries M-Pesa for
+   * the outcome of the in-flight push, so confirmation does not depend solely
+   * on the async callback.
+   */
+  const startPolling = () => {
+    stopPolling();
+    setMpesaStatus('awaiting');
+    pollStartRef.current = Date.now();
+
+    pollTimerRef.current = setInterval(async () => {
+      // Give up after 2 minutes: the STK prompt expires on the handset.
+      if (Date.now() - pollStartRef.current > 120000) {
+        stopPolling();
+        setMpesaStatus('failed');
+        setFailureReason('We did not receive a payment confirmation in time. The STK prompt may have expired — please retry.');
+        return;
+      }
+
+      try {
+        const res = await request('get', `/payments/verify/${order.id}`);
+        // request() returns the body: { success, data: { orderStatus, paymentStatus, latestAttempt, ledger, queriedSafaricom } }
+        const state = res?.data;
+        if (!state) return;
+
+        if (state.paymentStatus === 'paid' && state.orderStatus === 'confirmed') {
+          stopPolling();
+          setMpesaStatus('paid');
+          setAwaitingPin(false);
+          setPaid(true);
+          setPaymentResponse({
+            success: true,
+            transactionId: state.latestAttempt?.mpesa_receipt_number || `order-${order.id}`,
+            orderId: order.id,
+            amount: total,
+            paymentMethod: 'mpesa',
+            walletBalances: state.ledger?.walletBalances || { customer: 0, retailer: 0, omc: 0, agregas: 0 },
+            ledgerEntriesCreated: state.ledger?.entriesCreated || 0,
+            nextSteps: 'Payment confirmed by M-Pesa callback.',
+          });
+          addNotification('Payment confirmed! Thank you.', 'success');
+        } else if (state.latestAttempt?.status && state.latestAttempt.status !== 'initiated') {
+          // Callback reported failure: cancelled / timeout / wrong PIN / insufficient funds
+          stopPolling();
+          setMpesaStatus('failed');
+          setAwaitingPin(false);
+          setFailureReason(
+            state.latestAttempt.friendly_message ||
+            state.latestAttempt.result_desc ||
+            'The M-Pesa payment did not go through. You can retry.'
+          );
+          addNotification('M-Pesa payment failed. You can retry.', 'error');
+        }
+      } catch {
+        // Transient network errors during polling: keep trying until timeout.
+      }
+    }, 3000);
   };
 
   /**
@@ -186,33 +269,33 @@ export const PaymentPage = () => {
         idempotencyKey,
       });
 
-      console.log('✅ Payment response from backend:', response.data);
+      console.log('✅ Payment response from backend:', response);
 
-      if (response.data?.success) {
-        setPaymentResponse(response.data.data);
-
+      // request() already returns the response body: { success, statusCode, data, message }
+      if (response?.success) {
         if (selectedMethod === 'mpesa') {
-          // Keep button disabled and prompt user to finish step on handset
+          // Backend recorded the STK initiation; real outcome arrives via callback.
+          // Keep the button disabled and poll for the result.
           setAwaitingPin(true);
-          addNotification('STK Push sent! Please complete by entering your PIN on your phone.', 'info');
-          
-          // FOR TESTING PURPOSES ONLY: Autoclose/mock success after 8 seconds 
-          setTimeout(() => {
-            setPaid(true);
-            setAwaitingPin(false);
-          }, 8000);
-        } else {
-          // Immediate payment execution for Cash/Card simulations
+          setPaymentError(null);
+          addNotification('STK Push sent! Please enter your M-Pesa PIN on your phone.', 'info');
+          startPolling();
+        } else if (selectedMethod === 'card') {
+          // Card gateway not integrated yet — the backend records the ledger eagerly.
+          setPaymentResponse(response.data);
           setPaid(true);
           addNotification(
-            `Payment processed! Ledger updated with ${response.data.data.ledgerEntriesCreated} entries`,
+            `Payment processed! Ledger updated with ${response.data?.ledgerEntriesCreated ?? 0} entries`,
             'success'
           );
+        } else {
+          // Cash on delivery: no gateway step, backend records the ledger eagerly.
+          setPaymentResponse(response.data);
+          setPaid(true);
+          addNotification('Order placed! Pay on delivery.', 'success');
         }
-
-        console.log('💰 Wallet balances:', response.data.data.walletBalances);
       } else {
-        throw new Error(response.data?.message || 'Payment failed');
+        throw new Error(response?.message || 'Payment failed');
       }
     } catch (error: any) {
       console.error('❌ Payment error:', error);
@@ -228,6 +311,17 @@ export const PaymentPage = () => {
     } finally {
       setPaying(false);
     }
+  };
+
+  /**
+   * Retry after an M-Pesa failure: clear the failed state and re-run handlePay
+   * (the same phone number is reused; the backend starts a fresh STK push).
+   */
+  const handleRetry = () => {
+    setMpesaStatus('idle');
+    setFailureReason(null);
+    setPaymentError(null);
+    handlePay();
   };
 
   // Condition to determine if button interaction should be blocked
@@ -498,6 +592,29 @@ export const PaymentPage = () => {
                   <div>
                     <p className="text-sm font-semibold text-red-900">Payment Error</p>
                     <p className="text-xs text-red-700 mt-0.5">{paymentError}</p>
+                  </div>
+                </div>
+              )}
+
+              {mpesaStatus === 'failed' && failureReason && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-4">
+                  <div className="flex gap-3">
+                    <XCircle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-red-900">M-Pesa Payment Failed</p>
+                      <p className="text-xs text-red-700 mt-0.5">{failureReason}</p>
+                      <p className="text-xs text-red-600 mt-1.5">
+                        Your order is still pending — no money was taken. Fix the issue (e.g. top up
+                        your M-Pesa balance) and try again.
+                      </p>
+                      <button
+                        onClick={handleRetry}
+                        className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                      >
+                        <RotateCcw size={14} />
+                        Retry Payment
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

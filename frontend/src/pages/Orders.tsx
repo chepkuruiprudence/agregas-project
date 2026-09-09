@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
 import { useApi } from '../hooks/useApi';
@@ -28,6 +29,7 @@ interface Order {
 export const Orders = () => {
   const { request, loading } = useApi();
   const { addNotification } = useNotifications();
+  const navigate = useNavigate();
 
   // State: Orders List
   const [orders, setOrders] = useState<Order[]>([]);
@@ -35,20 +37,6 @@ export const Orders = () => {
   // State: Create Order View Controller
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [creating, setCreating] = useState(false);
-
-  // State: Form Data
-  const [formData, setFormData] = useState({
-    purchaseType: 'refill' as 'refill' | 'outright',
-    brand: '',
-    cylinderSize: '',
-    quantity: 1,
-    latitude: '',
-    longitude: '',
-    deliveryAddress: '',
-    paymentMethod: 'mpesa',
-  });
-
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
   /**
    * Fetch customer orders on mount
@@ -83,7 +71,28 @@ export const Orders = () => {
 
       addNotification('Order created successfully!', 'success');
 
-      // Close view & refresh list
+      // Redirect to payment page with the created order
+      const createdOrder = response?.data?.order || response?.data;
+      if (createdOrder) {
+        navigate('/payment', {
+          state: {
+            order: {
+              id: createdOrder.id,
+              brand: createdOrder.brand,
+              cylinderSize: createdOrder.cylinder_size || createdOrder.cylinderSize || orderData.cylinderSize,
+              quantity: createdOrder.quantity || orderData.quantity,
+              finalPrice: createdOrder.final_price || createdOrder.finalPrice || '0',
+              status: createdOrder.status || 'pending',
+              deliveryAddress: createdOrder.delivery_address || createdOrder.deliveryAddress || orderData.deliveryAddress,
+              paymentMethod: createdOrder.payment_method || createdOrder.paymentMethod || orderData.paymentMethod,
+              createdAt: createdOrder.created_at || createdOrder.createdAt || new Date().toISOString(),
+            },
+          },
+        });
+        return;
+      }
+
+      // Fallback: no order data returned, just refresh list
       setShowCreateForm(false);
       await fetchOrders();
     } catch (error: any) {
@@ -122,15 +131,9 @@ export const Orders = () => {
         <main className="flex-grow flex items-center justify-center p-4 sm:p-8 py-12">
           <CreateOrderModal
             isOpen={true}
-            onClose={() => {
-              setErrors({});
-              setShowCreateForm(false);
-            }}
+            onClose={() => setShowCreateForm(false)}
             onSubmit={handleCreateOrder}
             isLoading={creating}
-            formData={formData}
-            onFormChange={setFormData}
-            errors={errors}
           />
         </main>
         <Footer />
